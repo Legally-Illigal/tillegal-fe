@@ -1,0 +1,13 @@
+{
+  "app": {
+    "name": "React Base",
+    "tagline": "Production-ready React starter"
+  },
+  "nav": {
+    "home": "Home"
+  },
+  "common": {
+    "notFound": "Page not found",
+    "backHome": "Back to home"
+  }
+}

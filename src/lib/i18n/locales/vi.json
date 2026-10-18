@@ -1,0 +1,13 @@
+{
+  "app": {
+    "name": "React Base",
+    "tagline": "Khởi tạo React sẵn sàng cho production"
+  },
+  "nav": {
+    "home": "Trang chủ"
+  },
+  "common": {
+    "notFound": "Không tìm thấy trang",
+    "backHome": "Về trang chủ"
+  }
+}
