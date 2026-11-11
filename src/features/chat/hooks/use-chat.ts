@@ -38,6 +38,26 @@ export function useChat(initialConversationId?: string | null): UseChatReturn {
   )
   const [isCitationDrawerOpen, setIsCitationDrawerOpen] = React.useState(false)
 
+  // Đồng bộ danh sách hội thoại từ máy chủ khi khởi tạo
+  React.useEffect(() => {
+    let isMounted = true
+
+    chatApi
+      .getConversations()
+      .then((serverList) => {
+        if (isMounted && Array.isArray(serverList) && serverList.length > 0) {
+          setConversations(serverList)
+        }
+      })
+      .catch(() => {
+        // Fallback silently to local conversations
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
   const activeConversation = React.useMemo(
     () => conversations.find((c) => c.id === activeConversationId),
     [conversations, activeConversationId],
@@ -58,13 +78,14 @@ export function useChat(initialConversationId?: string | null): UseChatReturn {
       try {
         const remoteMessages = await chatApi.getMessages(activeConversationId!)
         if (isMounted) {
-          setMessages(remoteMessages)
+          setMessages(Array.isArray(remoteMessages) ? remoteMessages : [])
         }
       } catch (err) {
         if (isMounted) {
           const msg = (err as Error).message || 'Không thể tải tin nhắn hội thoại'
           setError(msg)
           toast.error(msg)
+          setMessages([])
         }
       } finally {
         if (isMounted) {
@@ -96,9 +117,11 @@ export function useChat(initialConversationId?: string | null): UseChatReturn {
   }, [])
 
   const deleteConversation = React.useCallback(
-    (id: string) => {
-      chatApi.deleteLocalConversation(id)
-      setConversations((prev) => prev.filter((c) => c.id !== id))
+    async (id: string) => {
+      await chatApi.deleteConversation(id)
+      setConversations((prev) =>
+        Array.isArray(prev) ? prev.filter((c) => c.id !== id) : [],
+      )
       if (activeConversationId === id) {
         createNewChat()
       }
@@ -114,16 +137,17 @@ export function useChat(initialConversationId?: string | null): UseChatReturn {
 
       setError(null)
 
+      const tempId = `temp-${Date.now()}`
       // 1. Tạo tin nhắn tạm của user trên UI
       const tempUserMessage: ConversationMessage = {
-        id: `temp-${Date.now()}`,
+        id: tempId,
         conversationId: activeConversationId || 'pending',
         role: 'user',
         content: trimmed,
         createdAt: new Date().toISOString(),
       }
 
-      setMessages((prev) => [...prev, tempUserMessage])
+      setMessages((prev) => [...(Array.isArray(prev) ? prev : []), tempUserMessage])
       setIsLoading(true)
 
       try {
@@ -138,7 +162,7 @@ export function useChat(initialConversationId?: string | null): UseChatReturn {
           setActiveConversationId(convId)
           setConversations((prev) => [
             newConv,
-            ...prev.filter((c) => c.id !== newConv.id),
+            ...(Array.isArray(prev) ? prev.filter((c) => c.id !== newConv.id) : []),
           ])
         }
 
@@ -146,17 +170,23 @@ export function useChat(initialConversationId?: string | null): UseChatReturn {
         const response = await chatApi.askQuestion(convId, trimmed)
 
         // Cập nhật lại tin nhắn chính thức từ backend
-        setMessages((prev) => [
-          ...prev.filter((m) => m.id !== tempUserMessage.id),
-          response.userMessage,
-          response.assistantMessage,
-        ])
+        setMessages((prev) => {
+          const current = (Array.isArray(prev) ? prev : []).filter(
+            (m) => m && m.id !== tempId,
+          )
+          const newItems: ConversationMessage[] = []
+          if (response.userMessage) newItems.push(response.userMessage)
+          if (response.assistantMessage) newItems.push(response.assistantMessage)
+          return [...current, ...newItems]
+        })
       } catch (err) {
         const errorMsg = (err as Error).message || 'Không thể gửi câu hỏi đến máy chủ'
         setError(errorMsg)
         toast.error(errorMsg)
         // Gỡ bỏ tin nhắn tạm nếu lỗi
-        setMessages((prev) => prev.filter((m) => m.id !== tempUserMessage.id))
+        setMessages((prev) =>
+          Array.isArray(prev) ? prev.filter((m) => m && m.id !== tempId) : [],
+        )
       } finally {
         setIsLoading(false)
       }
