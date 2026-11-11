@@ -6,6 +6,7 @@ description: Implement a bounded software task from its requirements and accepta
 # Implement Task
 
 ## Procedure
+
 1. Read the task specification and identify objective, scope, exclusions, dependencies, and acceptance criteria.
 2. Inspect the working tree and relevant code, tests, configuration, and project rules.
 3. Check prerequisites. If a blocking requirement is missing, ask a focused question; otherwise state reasonable, low-risk assumptions.
@@ -18,6 +19,7 @@ description: Implement a bounded software task from its requirements and accepta
 10. Report changes, verification results, limitations, and follow-up work.
 
 ## Stop and ask before
+
 - expanding the task into unrelated refactoring;
 - making irreversible or destructive changes;
 - changing a major architectural decision;
@@ -25,4 +27,5 @@ description: Implement a bounded software task from its requirements and accepta
 - choosing between materially different product behaviors not specified by the task.
 
 ## Completion criteria
+
 Do not call the task complete solely because code was written. State any acceptance criteria that remain unverified.

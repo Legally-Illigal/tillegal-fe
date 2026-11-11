@@ -1,6 +1,7 @@
 # Cấu Trúc Thư Mục Frontend
 
 ## 1. Sơ Đồ Tổ Chức Mã Nguồn (`src/`)
+
 Frontend được tổ chức theo mô hình module hóa và hướng tính năng (Feature-based structure):
 
 ```
@@ -26,6 +27,7 @@ src/
 ```
 
 ## 2. Quy Tắc & Ranh Giới Module
+
 - **Alias Import:** Luôn dùng `@/` để trỏ vào `src/` (ví dụ: `@/components/ui/button`).
 - **Feature Encapsulation:**
   - Logic đặc thù của tính năng (components con, hooks con, types, api calls) nằm gọn trong `src/features/<feature-name>/`.

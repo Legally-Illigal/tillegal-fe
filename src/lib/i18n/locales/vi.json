@@ -1,13 +1,64 @@
 {
   "app": {
-    "name": "React Base",
-    "tagline": "Khởi tạo React sẵn sàng cho production"
+    "name": "Tillegal",
+    "fullName": "Tillegal - Trợ lý AI Pháp luật Việt Nam",
+    "tagline": "Trợ lý trí tuệ nhân tạo chuyên sâu về pháp luật Việt Nam",
+    "badge": "AI Pháp Luật",
+    "subtitle": "Trợ lý Pháp luật Việt Nam",
+    "description": "Giải đáp tình huống pháp lý dễ hiểu cho người dân, tra cứu đối chiếu căn cứ điều khoản chính xác cho luật sư."
   },
   "nav": {
-    "home": "Trang chủ"
+    "home": "Trang chủ",
+    "chat": "Hỏi đáp pháp lý",
+    "verify": "Kiểm chứng căn cứ",
+    "login": "Đăng nhập",
+    "startNow": "Bắt đầu ngay"
+  },
+  "theme": {
+    "toggle": "Giao diện",
+    "light": "Sáng",
+    "dark": "Tối",
+    "system": "Hệ thống"
+  },
+  "home": {
+    "badge": "Trợ lý Trí tuệ Nhân tạo Pháp luật Việt Nam",
+    "title": "Tra cứu & Giải đáp Pháp luật Thông minh, Minh bạch",
+    "subtitle": "Được xây dựng trên nền tảng Multi-Agent RAG với khả năng phân tích tình huống đời thường và đối chiếu từng điều khoản văn bản quy phạm pháp luật còn hiệu lực.",
+    "ctaChat": "Hỏi đáp pháp lý ngay",
+    "ctaVerify": "Tra cứu & Thẩm định văn bản",
+    "trust": {
+      "t1": "Đối chiếu văn bản luật hiện hành",
+      "t2": "Trích dẫn từng điều khoản cụ thể",
+      "t3": "Độc lập & Minh bạch căn cứ"
+    },
+    "features": {
+      "title": "Năng Lực Cốt Lõi Của Tillegal",
+      "subtitle": "Kết hợp giữa mô hình ngôn ngữ lớn và cơ sở dữ liệu pháp luật Việt Nam được kiểm chứng",
+      "f1Title": "Hỏi đáp & Phân tích tình huống",
+      "f1Desc": "Chuyển hóa tình huống phức tạp thành ngôn ngữ dễ hiểu, gợi ý hướng giải quyết phù hợp với quy định hiện hành.",
+      "f2Title": "Trích dẫn căn cứ minh bạch",
+      "f2Desc": "Mỗi nhận định đều liên kết trực tiếp tới điều khoản, số hiệu luật, nghị định kèm trạng thái hiệu lực pháp lý.",
+      "f3Title": "Thiết kế cho 2 phân hệ người dùng",
+      "f3Desc": "Giao diện tinh gọn cho Người dân và bảng điều khiển chuyên sâu cho Luật sư làm việc với hồ sơ vụ việc."
+    },
+    "samples": {
+      "title": "Tình huống pháp lý thường gặp",
+      "subtitle": "Bấm vào để bắt đầu phân tích tình huống với Tillegal",
+      "viewAll": "Xem tất cả",
+      "tryNow": "Thử hỏi ngay",
+      "q1": "Thủ tục sang tên Giấy chứng nhận quyền sử dụng đất khi nhận thừa kế?",
+      "q2": "Công ty đơn phương chấm dứt hợp đồng lao động trái pháp luật xử lý thế nào?",
+      "q3": "Thời hiệu khởi kiện tranh chấp hợp đồng kinh tế theo Luật Thương mại?"
+    }
+  },
+  "footer": {
+    "disclaimerTitle": "Khước từ trách nhiệm pháp lý",
+    "disclaimer": "Mọi câu trả lời của AI chỉ mang tính chất tham khảo, không thay thế ý kiến tư vấn pháp lý chính thức từ luật sư hoặc cơ quan nhà nước có thẩm quyền.",
+    "copyright": "© 2026 Tillegal. Bảo lưu mọi quyền."
   },
   "common": {
     "notFound": "Không tìm thấy trang",
+    "notFoundDesc": "Đường dẫn bạn truy cập không tồn tại hoặc đã được di chuyển.",
     "backHome": "Về trang chủ"
   }
 }
