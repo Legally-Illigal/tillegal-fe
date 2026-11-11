@@ -8,7 +8,9 @@ export const API_ENDPOINTS = {
     loginGoogle: '/auth/login/google',
   },
   conversations: {
+    list: '/conversations',
     create: '/conversations',
+    detail: (id: string) => `/conversations/${id}`,
     messages: (id: string) => `/conversations/${id}/messages`,
   },
   citations: {

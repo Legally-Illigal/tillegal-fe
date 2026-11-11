@@ -1,5 +1,5 @@
 import { createBrowserRouter } from 'react-router-dom'
-import { MainLayout } from '@/components/layout'
+import { MainLayout, RouteErrorBoundary } from '@/components/layout'
 import { ProtectedRoute } from '@/features/auth'
 import { HomePage } from '@/pages/home/home-page'
 import { LoginPage } from '@/pages/auth/login-page'
@@ -10,6 +10,7 @@ import { NotFoundPage } from '@/pages/not-found/not-found-page'
 export const router = createBrowserRouter([
   {
     element: <MainLayout />,
+    errorElement: <RouteErrorBoundary />,
     children: [
       {
         path: '/',

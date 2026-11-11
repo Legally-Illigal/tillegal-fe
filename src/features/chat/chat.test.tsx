@@ -1,9 +1,11 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { CitationItem } from '@/features/citation'
-import { chatApi } from './api/chat-api'
+import { apiClient } from '@/lib/api/client'
+import { chatApi, normalizeMessage } from './api/chat-api'
 import { MessageContent } from './components/message-content'
-import type { Conversation } from './types/chat.types'
+import { MessageList } from './components/message-list'
+import type { Conversation, ConversationMessage } from './types/chat.types'
 
 describe('Chat Feature', () => {
   describe('chatApi local storage management', () => {
@@ -35,6 +37,88 @@ describe('Chat Feature', () => {
       const remaining = chatApi.getLocalConversations()
       expect(remaining).toHaveLength(1)
       expect(remaining[0]?.id).toBe('c2')
+    })
+  })
+
+  describe('normalizeMessage & getMessages API parsing', () => {
+    it('normalizes raw object and parses string citations safely', () => {
+      const raw = {
+        id: 'msg-1',
+        conversation_id: 'conv-1',
+        role: 'ASSISTANT',
+        content: 'Nội dung trả lời',
+        citations: JSON.stringify([
+          {
+            id: 'cit-1',
+            index: 1,
+            documentTitle: 'Luật Đất đai',
+          },
+        ]),
+        created_at: '2026-10-26T14:00:00Z',
+      }
+
+      const normalized = normalizeMessage(raw)
+      expect(normalized.id).toBe('msg-1')
+      expect(normalized.conversationId).toBe('conv-1')
+      expect(normalized.role).toBe('assistant')
+      expect(normalized.content).toBe('Nội dung trả lời')
+      expect(normalized.citations).toHaveLength(1)
+      expect(normalized.citations?.[0]?.documentTitle).toBe('Luật Đất đai')
+    })
+
+    it('handles CursorPagedMessagesApiResponse object from backend correctly', async () => {
+      const mockPagedResponse = {
+        data: [
+          {
+            id: 'msg-101',
+            conversationId: 'conv-101',
+            role: 'user',
+            content: 'Chào bạn',
+            citations: null,
+            createdAt: '2026-10-26T14:00:00Z',
+          },
+        ],
+        has_more: false,
+        next_cursor: null,
+      }
+
+      vi.spyOn(apiClient, 'get').mockResolvedValueOnce(mockPagedResponse)
+
+      const result = await chatApi.getMessages('conv-101')
+      expect(Array.isArray(result)).toBe(true)
+      expect(result).toHaveLength(1)
+      expect(result[0]?.id).toBe('msg-101')
+      expect(result[0]?.role).toBe('user')
+    })
+  })
+
+  describe('MessageList', () => {
+    it('renders empty suggestions state safely without throwing when messages is empty or unnormalized', () => {
+      // Test when messages is empty array
+      const { rerender } = render(<MessageList messages={[]} isLoading={false} />)
+      expect(screen.getByText('Trợ lý AI Pháp luật Việt Nam')).toBeInTheDocument()
+
+      // Test defensive guard if messages is passed as non-array at runtime (e.g. backend paged object)
+      rerender(
+        // @ts-expect-error Testing runtime defensive guard against unexpected backend shape
+        <MessageList messages={{ data: [], has_more: false }} isLoading={false} />,
+      )
+      expect(screen.getByText('Trợ lý AI Pháp luật Việt Nam')).toBeInTheDocument()
+    })
+
+    it('renders list of messages safely without errors', () => {
+      const messages: ConversationMessage[] = [
+        {
+          id: 'm1',
+          conversationId: 'c1',
+          role: 'user',
+          content: 'Thủ tục cấp sổ đỏ thế nào?',
+          createdAt: '2026-10-26T14:00:00Z',
+        },
+      ]
+
+      render(<MessageList messages={messages} isLoading={false} />)
+      expect(screen.getByText('Thủ tục cấp sổ đỏ thế nào?')).toBeInTheDocument()
     })
   })
 

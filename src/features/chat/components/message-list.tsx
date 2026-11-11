@@ -43,11 +43,18 @@ export function MessageList({
 }: MessageListProps) {
   const bottomRef = React.useRef<HTMLDivElement>(null)
 
-  React.useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, isLoading])
+  const safeMessages = React.useMemo(() => {
+    if (!Array.isArray(messages)) return []
+    return messages.filter((m): m is ConversationMessage =>
+      Boolean(m && typeof m === 'object' && m.id),
+    )
+  }, [messages])
 
-  if (messages.length === 0 && !isLoading) {
+  React.useEffect(() => {
+    bottomRef.current?.scrollIntoView?.({ behavior: 'smooth' })
+  }, [safeMessages, isLoading])
+
+  if (safeMessages.length === 0 && !isLoading) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center p-4 text-center sm:p-8">
         <div className="bg-primary/10 border-primary/20 mb-4 flex size-14 items-center justify-center rounded-2xl border shadow-xs">
@@ -99,7 +106,7 @@ export function MessageList({
 
   return (
     <div className="flex-1 space-y-2 p-4 sm:p-6">
-      {messages.map((message) => (
+      {safeMessages.map((message) => (
         <MessageItem
           key={message.id}
           message={message}
