@@ -8,7 +8,11 @@ import type {
   CreateConversationRequest,
 } from '../types/chat.types'
 
-const LOCAL_STORAGE_CONVERSATIONS_KEY = 'tillegal_saved_conversations'
+export function getConversationsStorageKey(userId?: string | null): string {
+  return userId
+    ? `tillegal_saved_conversations_${userId}`
+    : 'tillegal_saved_conversations_guest'
+}
 
 /**
  * Chuẩn hóa đối tượng tin nhắn từ API về đúng định dạng ConversationMessage
@@ -211,29 +215,30 @@ export const chatApi = {
   /**
    * Tạo cuộc hội thoại mới
    */
-  async createConversation(data?: CreateConversationRequest): Promise<Conversation> {
+  async createConversation(
+    data?: CreateConversationRequest,
+    userId?: string | null,
+  ): Promise<Conversation> {
     const response = await apiClient.post<Conversation>(
       API_ENDPOINTS.conversations.create,
       data ?? {},
     )
-    chatApi.saveLocalConversation(response)
+    chatApi.saveLocalConversation(response, userId)
     return response
   },
 
   /**
-   * Lấy danh sách cuộc hội thoại từ máy chủ (fallback về LocalStorage)
+   * Lấy danh sách cuộc hội thoại từ máy chủ (fallback về LocalStorage của đúng user)
    */
-  async getConversations(): Promise<Conversation[]> {
+  async getConversations(userId?: string | null): Promise<Conversation[]> {
     try {
       const serverList = await apiClient.get<Conversation[]>(
         API_ENDPOINTS.conversations.list,
       )
       if (Array.isArray(serverList)) {
         try {
-          localStorage.setItem(
-            LOCAL_STORAGE_CONVERSATIONS_KEY,
-            JSON.stringify(serverList.slice(0, 30)),
-          )
+          const key = getConversationsStorageKey(userId)
+          localStorage.setItem(key, JSON.stringify(serverList.slice(0, 30)))
         } catch {
           // ignore storage error
         }
@@ -242,7 +247,7 @@ export const chatApi = {
     } catch {
       // offline / unauthenticated fallback
     }
-    return chatApi.getLocalConversations()
+    return chatApi.getLocalConversations(userId)
   },
 
   /**
@@ -356,11 +361,12 @@ export const chatApi = {
   },
 
   /**
-   * Lấy danh sách cuộc hội thoại lưu trữ trong LocalStorage
+   * Lấy danh sách cuộc hội thoại lưu trữ trong LocalStorage theo userId
    */
-  getLocalConversations(): Conversation[] {
+  getLocalConversations(userId?: string | null): Conversation[] {
     try {
-      const data = localStorage.getItem(LOCAL_STORAGE_CONVERSATIONS_KEY)
+      const key = getConversationsStorageKey(userId)
+      const data = localStorage.getItem(key)
       if (!data) return []
       const parsed = JSON.parse(data)
       return Array.isArray(parsed) ? parsed : []
@@ -370,11 +376,12 @@ export const chatApi = {
   },
 
   /**
-   * Lưu hoặc cập nhật thông tin cuộc hội thoại vào LocalStorage
+   * Lưu hoặc cập nhật thông tin cuộc hội thoại vào LocalStorage theo userId
    */
-  saveLocalConversation(conversation: Conversation): void {
+  saveLocalConversation(conversation: Conversation, userId?: string | null): void {
     try {
-      const list = chatApi.getLocalConversations()
+      const key = getConversationsStorageKey(userId)
+      const list = chatApi.getLocalConversations(userId)
       const existingIndex = list.findIndex((c) => c.id === conversation.id)
       let updated: Conversation[]
 
@@ -385,10 +392,7 @@ export const chatApi = {
         updated = [conversation, ...list]
       }
 
-      localStorage.setItem(
-        LOCAL_STORAGE_CONVERSATIONS_KEY,
-        JSON.stringify(updated.slice(0, 30)),
-      )
+      localStorage.setItem(key, JSON.stringify(updated.slice(0, 30)))
     } catch {
       // LocalStorage error fallback
     }
@@ -397,8 +401,8 @@ export const chatApi = {
   /**
    * Xóa một cuộc hội thoại (cả LocalStorage lẫn Backend)
    */
-  async deleteConversation(id: string): Promise<void> {
-    chatApi.deleteLocalConversation(id)
+  async deleteConversation(id: string, userId?: string | null): Promise<void> {
+    chatApi.deleteLocalConversation(id, userId)
     try {
       await apiClient.delete(API_ENDPOINTS.conversations.detail(id))
     } catch {
@@ -407,23 +411,35 @@ export const chatApi = {
   },
 
   /**
-   * Xóa một cuộc hội thoại khỏi LocalStorage
+   * Xóa một cuộc hội thoại khỏi LocalStorage theo userId
    */
-  deleteLocalConversation(id: string): void {
+  deleteLocalConversation(id: string, userId?: string | null): void {
     try {
-      const list = chatApi.getLocalConversations().filter((c) => c.id !== id)
-      localStorage.setItem(LOCAL_STORAGE_CONVERSATIONS_KEY, JSON.stringify(list))
+      const key = getConversationsStorageKey(userId)
+      const list = chatApi.getLocalConversations(userId).filter((c) => c.id !== id)
+      localStorage.setItem(key, JSON.stringify(list))
     } catch {
       // LocalStorage error fallback
     }
   },
 
   /**
-   * Xóa toàn bộ lịch sử hội thoại
+   * Xóa toàn bộ lịch sử hội thoại (nếu có userId thì xóa của user đó, không thì xóa toàn bộ)
    */
-  clearLocalConversations(): void {
+  clearLocalConversations(userId?: string | null): void {
     try {
-      localStorage.removeItem(LOCAL_STORAGE_CONVERSATIONS_KEY)
+      if (userId) {
+        localStorage.removeItem(getConversationsStorageKey(userId))
+      } else {
+        const keysToRemove: string[] = []
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i)
+          if (k && k.startsWith('tillegal_saved_conversations')) {
+            keysToRemove.push(k)
+          }
+        }
+        keysToRemove.forEach((k) => localStorage.removeItem(k))
+      }
     } catch {
       // LocalStorage error fallback
     }

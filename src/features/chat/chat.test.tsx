@@ -5,6 +5,7 @@ import { apiClient } from '@/lib/api/client'
 import { chatApi, normalizeMessage } from './api/chat-api'
 import { MessageContent } from './components/message-content'
 import { MessageList } from './components/message-list'
+import { deduplicateMessages } from './hooks/use-chat'
 import type { Conversation, ConversationMessage } from './types/chat.types'
 
 describe('Chat Feature', () => {
@@ -157,6 +158,39 @@ describe('Chat Feature', () => {
 
       fireEvent.click(badge)
       expect(handleSelect).toHaveBeenCalledWith(citations[0])
+    })
+  })
+
+  describe('deduplicateMessages', () => {
+    it('removes duplicate messages by id and duplicate user messages with the same content', () => {
+      const msgs: ConversationMessage[] = [
+        {
+          id: 'temp-1',
+          conversationId: 'c1',
+          role: 'user',
+          content: 'xử phạt vi phạm nồng độ cồn',
+          createdAt: '2026-10-26T14:00:00Z',
+        },
+        {
+          id: 'guid-1',
+          conversationId: 'c1',
+          role: 'user',
+          content: 'xử phạt vi phạm nồng độ cồn',
+          createdAt: '2026-10-26T14:00:01Z',
+        },
+        {
+          id: 'guid-2',
+          conversationId: 'c1',
+          role: 'assistant',
+          content: 'Khung 1 phạt 2-3 triệu',
+          createdAt: '2026-10-26T14:00:02Z',
+        },
+      ]
+
+      const deduplicated = deduplicateMessages(msgs)
+      expect(deduplicated).toHaveLength(2)
+      expect(deduplicated[0]?.role).toBe('user')
+      expect(deduplicated[1]?.role).toBe('assistant')
     })
   })
 })

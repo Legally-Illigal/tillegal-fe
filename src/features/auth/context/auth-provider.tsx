@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { authApi } from '../api/auth-api'
+import { chatApi } from '@/features/chat/api/chat-api'
 import { tokenStorage } from '@/lib/api'
 import type {
   LoginRequest,
@@ -31,6 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const handleUnauthorized = () => {
       tokenStorage.clearTokens()
       localStorage.removeItem(USER_STORAGE_KEY)
+      chatApi.clearLocalConversations()
       setUser(null)
     }
 
@@ -134,6 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     tokenStorage.clearTokens()
     localStorage.removeItem(USER_STORAGE_KEY)
+    chatApi.clearLocalConversations()
     setUser(null)
     window.location.href = '/'
   }
