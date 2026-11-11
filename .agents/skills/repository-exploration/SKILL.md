@@ -6,6 +6,7 @@ description: Map an unfamiliar repository before implementation. Use when starti
 # Repository Exploration
 
 ## Procedure
+
 1. Inspect the top-level directory and relevant project manifests.
 2. Identify application entry points, major modules, dependency direction, configuration, and test projects.
 3. Search for the existing implementation of the behavior being changed before proposing new code.
@@ -19,6 +20,7 @@ description: Map an unfamiliar repository before implementation. Use when starti
    - uncertainties and contradictions.
 
 ## Constraints
+
 - Do not modify files during exploration unless the user explicitly asks for changes.
 - Do not dump the entire repository into the response.
 - Separate verified findings from hypotheses.

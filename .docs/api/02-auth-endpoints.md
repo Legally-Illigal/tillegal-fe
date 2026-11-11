@@ -1,58 +1,132 @@
-# Hợp Đồng API: Xác Thực & Phân Quyền (Auth Endpoints)
+# Hợp Đồng API: Xác Thực & Quản Lý Tài Khoản (Auth Endpoints)
+
+Hợp đồng được đối chiếu trực tiếp từ `Tillegal.Api.Controllers.AuthController` và các hợp đồng trong `Tillegal.Api.Contracts.Auth`.
 
 ## 1. Mô Hình Người Dùng & Vai Trò (Roles)
-```ts
-export type UserRole = 'citizen' | 'lawyer' | 'admin'
 
-export interface UserProfile {
-  id: string
+```ts
+export type UserRole = 'Admin' | 'User' | 'Lawyer' | string
+
+export interface LoginUserInfo {
+  id: string // Guid
   email: string
   fullName: string
-  role: UserRole
-  lawyerLicenseNumber?: string // Chỉ có nếu là luật sư
-  createdAt: string
+  phoneNumber?: string | null
+  role?: UserRole | null // "User" (Người dân), "Lawyer" (Luật sư), "Admin"
 }
 ```
 
 ## 2. Danh Sách Endpoint
 
-### A. Đăng Nhập (`POST /auth/login`)
-- **Request Body:**
-  ```json
-  {
-    "email": "lawyer@example.com",
-    "password": "SecretPassword123!"
-  }
-  ```
-- **Response Data (200 OK):**
-  ```json
-  {
-    "accessToken": "eyJhbGciOi...",
-    "refreshToken": "d8e3b2...",
-    "expiresIn": 3600,
-    "user": { "id": "u-123", "email": "lawyer@example.com", "role": "lawyer", "fullName": "Nguyễn Văn A" }
-  }
-  ```
+### A. Đăng Nhập Mật Khẩu (`POST /api/auth/login`)
 
-### B. Đăng Ký Tài Khoản (`POST /auth/register`)
 - **Request Body:**
   ```json
   {
     "email": "user@example.com",
-    "password": "SecretPassword123!",
-    "fullName": "Trần Thị B",
-    "role": "lawyer",
-    "lawyerLicenseNumber": "HN-1234/TP"
+    "password": "Password123!"
+  }
+  ```
+- **Response (200 OK):**
+  ```json
+  {
+    "user": {
+      "id": "20000000-0000-0000-0000-000000000001",
+      "email": "user@example.com",
+      "fullName": "Nguyễn Văn A",
+      "phoneNumber": "0912345678",
+      "role": "User"
+    },
+    "message": "Login successful."
+  }
+  ```
+- **Cookie đi kèm:** Tự động set cookie `access_token` (`HttpOnly`, `SameSite=Lax`).
+
+---
+
+### B. Đăng Ký Tài Khoản (`POST /api/auth/register`)
+
+Quy trình đăng ký áp dụng cơ chế xác thực mã OTP gửi về Email.
+
+- **Request Body:**
+  ```json
+  {
+    "email": "user@example.com",
+    "password": "Password123!",
+    "fullName": "Nguyễn Văn A",
+    "phoneNumber": "0912345678" // Tùy chọn
+  }
+  ```
+- **Response (200 OK):**
+  ```json
+  {
+    "message": "Mã xác thực OTP đã được gửi đến email của bạn.",
+    "expirationMinutes": 10
   }
   ```
 
-### C. Lấy Thông Tin Người Dùng Hiện Tại (`GET /auth/me`)
-- **Headers:** `Authorization: Bearer <accessToken>`
-- **Response Data (200 OK):** Trả về đối tượng `UserProfile`.
+---
 
-### D. Làm Mới Token (`POST /auth/refresh`)
-- **Request Body:** `{ "refreshToken": "d8e3b2..." }`
-- **Response Data (200 OK):** `{ "accessToken": "...", "refreshToken": "..." }`
+### C. Xác Thực Đăng Ký Bằng OTP (`POST /api/auth/verify-registration`)
 
-### E. Đăng Xuất (`POST /auth/logout`)
-- Hủy token phía server. Phía Frontend xóa token khỏi bộ nhớ / storage và chuyển về trang Login.
+- **Request Body:**
+  ```json
+  {
+    "email": "user@example.com",
+    "otp": "123456"
+  }
+  ```
+- **Response (200 OK):**
+  ```json
+  {
+    "userId": "20000000-0000-0000-0000-000000000001",
+    "email": "user@example.com",
+    "fullName": "Nguyễn Văn A",
+    "message": "Xác thực tài khoản thành công."
+  }
+  ```
+
+---
+
+### D. Gửi Lại Mã OTP (`POST /api/auth/resend-otp`)
+
+- **Request Body:**
+  ```json
+  {
+    "email": "user@example.com"
+  }
+  ```
+- **Response (200 OK):**
+  ```json
+  {
+    "message": "Mã OTP mới đã được gửi.",
+    "expirationMinutes": 10
+  }
+  ```
+
+---
+
+### E. Đăng Ký & Đăng Nhập Bằng Google (`POST /api/auth/login/google` & `POST /api/auth/register/google`)
+
+Endpoint `POST /api/auth/login/google` áp dụng cơ chế **Unified Single Sign-On (JIT Auto-provisioning & Account Linking)**:
+
+- Người dùng đã có tài khoản Google: Đăng nhập ngay.
+- Người dùng đã đăng ký trước đó bằng email/mật khẩu: Tự động liên kết `GoogleSubject` và đăng nhập.
+- Người dùng hoàn toàn mới: Tự động tạo tài khoản người dùng (`User` role) và đăng nhập trong cùng 1 request.
+
+- **Request Body:**
+  ```json
+  {
+    "idToken": "eyJhbGciOiJSUzI1NiIs..."
+  }
+  ```
+- **Response (200 OK):**
+  ```json
+  {
+    "userId": "20000000-0000-0000-0000-000000000001",
+    "email": "user@gmail.com",
+    "fullName": "Nguyễn Văn A",
+    "message": "Google login completed successfully."
+  }
+  ```
+- **Cookie đi kèm:** Tự động set cookie `access_token` cho phiên làm việc.

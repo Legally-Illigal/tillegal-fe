@@ -1,12 +1,16 @@
 # Kiến Trúc Tổng Thể Hệ Thống (Frontend Context)
 
 ## 1. Mục Tiêu Dự Án Tillegal
+
 Tillegal là trợ lý AI chuyên sâu về pháp luật Việt Nam, phục vụ 2 nhóm người dùng chính:
+
 - **Người dân:** Giải thích pháp luật dễ hiểu, hỗ trợ phân tích tình huống đời thường.
 - **Luật sư:** Tra cứu chuyên sâu, đối chiếu căn cứ pháp lý, phân tích nhiều lượt trao đổi.
 
 ## 2. Vị Trí Của Frontend Trong Hệ Thống
+
 Hệ thống Tillegal chia làm 4 thành phần triển khai độc lập (theo ADR-001):
+
 1. **Frontend Web (Repo này):** SPA xây dựng bằng React 19, Vite, TypeScript.
 2. **Backend Web Service:** .NET Clean Architecture, quản trị API, Auth, Conversation & RBAC.
 3. **Python AI Service:** Multi-Agent RAG (Query, Search, Judge, Summary, Verify).
@@ -26,6 +30,7 @@ Hệ thống Tillegal chia làm 4 thành phần triển khai độc lập (theo 
 ```
 
 ## 3. Ranh Giới Trách Nhiệm Của Frontend
+
 - **Được làm:**
   - Cung cấp giao diện tương tác hội thoại, lịch sử chat, kiểm chứng trích dẫn.
   - Hiển thị phản hồi stream (SSE) theo thời gian thực kèm các bước xử lý của Agent.

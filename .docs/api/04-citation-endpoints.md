@@ -1,32 +1,35 @@
 # Hợp Đồng API: Kiểm Chứng Trích Dẫn & Tra Cứu (Citation Endpoints)
 
-## 1. Cấu Trúc Dữ Liệu Kiểm Chứng (Verification Models)
+> [!NOTE]
+> **Trạng thái triển khai Backend:**
+>
+> - Hiện tại trong `tillegal-be`, các trích dẫn pháp lý (`CitationItem`) được sinh tự động bởi AI và nhúng trực tiếp vào payload phản hồi của tin nhắn trợ lý AI (`POST /api/conversations/{id}/messages`).
+> - Cấu trúc trích dẫn thực tế tuân theo format chuẩn:
+>   `{ id, index, documentTitle, documentNumber, articleReference, sourceUrl, citedText }`.
+> - Các endpoint kiểm chứng trích dẫn độc lập dưới đây nằm trong backlog tương lai (BE-F06 & BE-F07) khi mở rộng phân hệ chuyên sâu cho Luật sư.
+
+---
+
+## 1. Cấu Trúc Dữ Liệu Trích Dẫn Thực Tế Trong Tin Nhắn
+
 ```ts
-export interface VerifyCitationRequest {
-  claim: string            // Nhận định hoặc quan điểm pháp lý cần kiểm tra
-  citedArticle?: string    // Điều khoản hoặc văn bản được viện dẫn (nếu có)
-  context?: string         // Tình huống hoặc bối cảnh áp dụng
-}
-
-export interface VerificationIssue {
-  type: 'invalid_source' | 'wrong_article' | 'expired_law' | 'unsupported_claim'
-  severity: 'high' | 'medium' | 'low'
-  description: string      // Diễn giải chi tiết lý do sai/thiếu
-}
-
-export interface VerifyCitationResult {
-  isSupported: boolean     // Căn cứ có thực sự hỗ trợ nhận định không?
-  confidenceScore: number  // Điểm tin cậy (0.0 đến 1.0)
-  verdict: 'verified' | 'refuted' | 'inconclusive'
-  summaryAnalysis: string  // Giải thích logic pháp lý
-  primaryCitation?: CitationItem
-  issues: VerificationIssue[]
+export interface CitationItem {
+  id: string // Ví dụ: "cit-001"
+  index: number // Số thứ tự chú thích trong bài [^1], [^2]
+  documentTitle: string // Tên văn bản luật (Ví dụ: "Luật Doanh nghiệp 2020")
+  documentNumber: string // Số hiệu văn bản (Ví dụ: "59/2020/QH14")
+  articleReference: string // Căn cứ điều khoản (Ví dụ: "Điều 23, Khoản 1")
+  sourceUrl: string // Link tra cứu chính thức (Thư Viện Pháp Luật, Cổng TTĐT)
+  citedText: string // Trích đoạn nội dung điều luật làm căn cứ
 }
 ```
 
-## 2. Danh Sách Endpoint
+---
 
-### A. Kiểm Chứng Trích Dẫn Độc Lập (`POST /citations/verify`)
+## 2. Kế Hoạch Endpoint Kiểm Chứng Độc Lập (Tương Lai)
+
+### A. Kiểm Chứng Trích Dẫn Độc Lập (`POST /api/citations/verify`)
+
 - **Mục đích:** Dành cho luật sư hoặc người dùng muốn kiểm tra một nhận định pháp luật hoặc trích dẫn có sẵn.
 - **Request Body:**
   ```json
@@ -51,7 +54,3 @@ export interface VerifyCitationResult {
     ]
   }
   ```
-
-### B. Tra Cứu Nhanh Văn Bản Căn Cứ (`GET /citations/search`)
-- **Query:** `?keyword=dat+coc&limit=5`
-- **Response Data (200 OK):** Mảng các `CitationItem` khớp với từ khóa tìm kiếm để gợi ý cho người dùng.
