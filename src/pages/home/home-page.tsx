@@ -1,7 +1,6 @@
 import {
   ArrowRight,
   Bot,
-  FileCheck2,
   FileText,
   HelpCircle,
   Scale,
@@ -77,13 +76,6 @@ export function HomePage() {
               <Bot className="size-4" />
               {t('home.ctaChat')}
               <ArrowRight className="size-4" />
-            </Button>
-          </Link>
-
-          <Link to="/verify">
-            <Button size="lg" variant="outline" className="h-11 gap-2 px-6">
-              <FileCheck2 className="size-4" />
-              {t('home.ctaVerify')}
             </Button>
           </Link>
         </div>

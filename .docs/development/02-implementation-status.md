@@ -40,7 +40,7 @@
 - [x] Xây dựng `CitationDrawer` trượt từ cạnh phải để xem toàn văn trích đoạn điều khoản, sao chép căn cứ và tra cứu link văn bản gốc.
 - [x] Tích hợp tự động ánh xạ giữa chú dẫn số trong nội dung trả lời của AI và danh sách trích dẫn `citations`.
 
-### Giai Đoạn 4: Kiểm Chứng Độc Lập & Xác Thực (Feature: Independent Check & Auth)
+### Giai Đoạn 4: Kiểm Chứng & Xác Thực Người Dùng (Feature: Verification & Auth)
 
-- [x] Form kiểm chứng độc lập cho người dùng/luật sư dán trích dẫn cần thẩm định (`VerifyPage`, `VerificationForm`, `VerificationResultCard`, `VerificationHistoryList`).
+- [x] Tích hợp kiểm chứng căn cứ trực tiếp trong phần hỏi đáp (`CitationBadge`, `CitationCard`, `CitationDrawer`, trích đoạn điều khoản gốc và tình trạng hiệu lực; điều hướng `/verify` về `/chat`).
 - [x] Giao diện đăng nhập, phân quyền hiển thị giữa Người dân và Luật sư (`LoginForm`, `RegisterForm`, `ProtectedRoute`).
