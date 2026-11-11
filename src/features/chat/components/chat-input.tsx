@@ -27,12 +27,14 @@ export function ChatInput({
 }: ChatInputProps) {
   const [content, setContent] = React.useState('')
   const textareaRef = React.useRef<HTMLTextAreaElement>(null)
+  const isSubmittingRef = React.useRef(false)
 
   const handleSubmit = (e?: React.FormEvent) => {
     e?.preventDefault()
     const trimmed = content.trim()
-    if (!trimmed || isLoading || disabled) return
+    if (!trimmed || isLoading || disabled || isSubmittingRef.current) return
 
+    isSubmittingRef.current = true
     onSend(trimmed)
     setContent('')
 
@@ -40,10 +42,16 @@ export function ChatInput({
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto'
     }
+
+    setTimeout(() => {
+      isSubmittingRef.current = false
+    }, 400)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
+      // Tránh gửi nhầm khi đang gõ dấu tiếng Việt (IME composing)
+      if (e.nativeEvent.isComposing) return
       e.preventDefault()
       handleSubmit()
     }

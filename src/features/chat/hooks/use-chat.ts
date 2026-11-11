@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { toast } from 'sonner'
+import { useAuth } from '@/features/auth'
 import type { CitationItem } from '@/features/citation'
 import { chatApi } from '../api/chat-api'
 import type { Conversation, ConversationMessage } from '../types/chat.types'
@@ -21,9 +22,43 @@ export interface UseChatReturn {
   deleteConversation: (id: string) => void
 }
 
+/**
+ * Loại bỏ các tin nhắn trùng ID hoặc trùng nội dung gửi liên tiếp
+ */
+export function deduplicateMessages(list: ConversationMessage[]): ConversationMessage[] {
+  const seenIds = new Set<string>()
+  const seenUserContent = new Set<string>()
+  const result: ConversationMessage[] = []
+
+  for (const msg of list) {
+    if (!msg || !msg.id) continue
+
+    if (seenIds.has(msg.id)) continue
+
+    const contentKey = msg.content.trim()
+    if (msg.role === 'user' && seenUserContent.has(contentKey)) {
+      continue
+    }
+
+    seenIds.add(msg.id)
+    if (msg.role === 'user') {
+      seenUserContent.add(contentKey)
+    }
+    result.push(msg)
+  }
+
+  return result
+}
+
 export function useChat(initialConversationId?: string | null): UseChatReturn {
+  const { user } = useAuth()
+  const userId = user?.id
+
+  const isSendingRef = React.useRef(false)
+  const skipFetchForConvIdRef = React.useRef<string | null>(null)
+
   const [conversations, setConversations] = React.useState<Conversation[]>(() =>
-    chatApi.getLocalConversations(),
+    chatApi.getLocalConversations(userId),
   )
   const [activeConversationId, setActiveConversationId] = React.useState<string | null>(
     initialConversationId ?? null,
@@ -38,14 +73,19 @@ export function useChat(initialConversationId?: string | null): UseChatReturn {
   )
   const [isCitationDrawerOpen, setIsCitationDrawerOpen] = React.useState(false)
 
-  // Đồng bộ danh sách hội thoại từ máy chủ khi khởi tạo
+  // Đồng bộ danh sách hội thoại từ máy chủ khi user thay đổi hoặc khởi tạo
   React.useEffect(() => {
     let isMounted = true
 
+    // Reset về trạng thái sạch sẽ cho đúng tài khoản hiện tại
+    setActiveConversationId(null)
+    setMessages([])
+    setConversations(chatApi.getLocalConversations(userId))
+
     chatApi
-      .getConversations()
+      .getConversations(userId)
       .then((serverList) => {
-        if (isMounted && Array.isArray(serverList) && serverList.length > 0) {
+        if (isMounted && Array.isArray(serverList)) {
           setConversations(serverList)
         }
       })
@@ -56,7 +96,7 @@ export function useChat(initialConversationId?: string | null): UseChatReturn {
     return () => {
       isMounted = false
     }
-  }, [])
+  }, [userId])
 
   const activeConversation = React.useMemo(
     () => conversations.find((c) => c.id === activeConversationId),
@@ -70,6 +110,12 @@ export function useChat(initialConversationId?: string | null): UseChatReturn {
       return
     }
 
+    // Bỏ qua lần fetch tự động nếu hội thoại này vừa được tạo bởi sendMessage
+    if (skipFetchForConvIdRef.current === activeConversationId) {
+      skipFetchForConvIdRef.current = null
+      return
+    }
+
     let isMounted = true
 
     async function fetchMessages() {
@@ -78,14 +124,32 @@ export function useChat(initialConversationId?: string | null): UseChatReturn {
       try {
         const remoteMessages = await chatApi.getMessages(activeConversationId!)
         if (isMounted) {
-          setMessages(Array.isArray(remoteMessages) ? remoteMessages : [])
+          setMessages(
+            deduplicateMessages(Array.isArray(remoteMessages) ? remoteMessages : []),
+          )
         }
       } catch (err) {
         if (isMounted) {
-          const msg = (err as Error).message || 'Không thể tải tin nhắn hội thoại'
-          setError(msg)
-          toast.error(msg)
-          setMessages([])
+          const apiErr = err as { status?: number; message?: string }
+          // Nếu cuộc hội thoại không tồn tại (404) hoặc thuộc người khác (403):
+          if (apiErr.status === 403 || apiErr.status === 404) {
+            toast.error(
+              'Cuộc trò chuyện này không tồn tại hoặc bạn không có quyền truy cập.',
+            )
+            chatApi.deleteLocalConversation(activeConversationId!, userId)
+            setConversations((prev) =>
+              Array.isArray(prev)
+                ? prev.filter((c) => c.id !== activeConversationId)
+                : [],
+            )
+            setActiveConversationId(null)
+            setMessages([])
+          } else {
+            const msg = (err as Error).message || 'Không thể tải tin nhắn hội thoại'
+            setError(msg)
+            toast.error(msg)
+            setMessages([])
+          }
         }
       } finally {
         if (isMounted) {
@@ -99,7 +163,7 @@ export function useChat(initialConversationId?: string | null): UseChatReturn {
     return () => {
       isMounted = false
     }
-  }, [activeConversationId])
+  }, [activeConversationId, userId])
 
   const selectCitation = React.useCallback((citation: CitationItem) => {
     setSelectedCitation(citation)
@@ -118,7 +182,7 @@ export function useChat(initialConversationId?: string | null): UseChatReturn {
 
   const deleteConversation = React.useCallback(
     async (id: string) => {
-      await chatApi.deleteConversation(id)
+      await chatApi.deleteConversation(id, userId)
       setConversations((prev) =>
         Array.isArray(prev) ? prev.filter((c) => c.id !== id) : [],
       )
@@ -127,14 +191,15 @@ export function useChat(initialConversationId?: string | null): UseChatReturn {
       }
       toast.success('Đã xóa cuộc trò chuyện')
     },
-    [activeConversationId, createNewChat],
+    [activeConversationId, createNewChat, userId],
   )
 
   const sendMessage = React.useCallback(
     async (content: string) => {
       const trimmed = content.trim()
-      if (!trimmed || isLoading) return
+      if (!trimmed || isSendingRef.current || isLoading) return
 
+      isSendingRef.current = true
       setError(null)
 
       const tempId = `temp-${Date.now()}`
@@ -147,7 +212,9 @@ export function useChat(initialConversationId?: string | null): UseChatReturn {
         createdAt: new Date().toISOString(),
       }
 
-      setMessages((prev) => [...(Array.isArray(prev) ? prev : []), tempUserMessage])
+      setMessages((prev) =>
+        deduplicateMessages([...(Array.isArray(prev) ? prev : []), tempUserMessage]),
+      )
       setIsLoading(true)
 
       try {
@@ -155,10 +222,15 @@ export function useChat(initialConversationId?: string | null): UseChatReturn {
 
         // Nếu chưa có hội thoại, tự động tạo mới
         if (!convId) {
-          const newConv = await chatApi.createConversation({
-            title: trimmed.length > 45 ? `${trimmed.slice(0, 42)}...` : trimmed,
-          })
+          const newConv = await chatApi.createConversation(
+            {
+              title: trimmed.length > 45 ? `${trimmed.slice(0, 42)}...` : trimmed,
+            },
+            userId,
+          )
           convId = newConv.id
+          // Đánh dấu bỏ qua fetch tự động trong useEffect để tránh nhân đôi tin nhắn
+          skipFetchForConvIdRef.current = convId
           setActiveConversationId(convId)
           setConversations((prev) => [
             newConv,
@@ -172,12 +244,16 @@ export function useChat(initialConversationId?: string | null): UseChatReturn {
         // Cập nhật lại tin nhắn chính thức từ backend
         setMessages((prev) => {
           const current = (Array.isArray(prev) ? prev : []).filter(
-            (m) => m && m.id !== tempId,
+            (m) =>
+              m &&
+              m.id !== tempId &&
+              m.id !== response.userMessage?.id &&
+              !(m.role === 'user' && m.content.trim() === trimmed),
           )
           const newItems: ConversationMessage[] = []
           if (response.userMessage) newItems.push(response.userMessage)
           if (response.assistantMessage) newItems.push(response.assistantMessage)
-          return [...current, ...newItems]
+          return deduplicateMessages([...current, ...newItems])
         })
       } catch (err) {
         const errorMsg = (err as Error).message || 'Không thể gửi câu hỏi đến máy chủ'
@@ -188,10 +264,11 @@ export function useChat(initialConversationId?: string | null): UseChatReturn {
           Array.isArray(prev) ? prev.filter((m) => m && m.id !== tempId) : [],
         )
       } finally {
+        isSendingRef.current = false
         setIsLoading(false)
       }
     },
-    [activeConversationId, isLoading],
+    [activeConversationId, isLoading, userId],
   )
 
   return {
