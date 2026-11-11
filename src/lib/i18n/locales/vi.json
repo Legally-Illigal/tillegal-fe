@@ -10,7 +10,6 @@
   "nav": {
     "home": "Trang chủ",
     "chat": "Hỏi đáp pháp lý",
-    "verify": "Kiểm chứng căn cứ",
     "login": "Đăng nhập",
     "startNow": "Bắt đầu ngay"
   },
@@ -25,7 +24,6 @@
     "title": "Tra cứu & Giải đáp Pháp luật Thông minh, Minh bạch",
     "subtitle": "Được xây dựng trên nền tảng Multi-Agent RAG với khả năng phân tích tình huống đời thường và đối chiếu từng điều khoản văn bản quy phạm pháp luật còn hiệu lực.",
     "ctaChat": "Hỏi đáp pháp lý ngay",
-    "ctaVerify": "Tra cứu & Thẩm định văn bản",
     "trust": {
       "t1": "Đối chiếu văn bản luật hiện hành",
       "t2": "Trích dẫn từng điều khoản cụ thể",

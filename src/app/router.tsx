@@ -1,10 +1,9 @@
-import { createBrowserRouter } from 'react-router-dom'
+import { Navigate, createBrowserRouter } from 'react-router-dom'
 import { MainLayout, RouteErrorBoundary } from '@/components/layout'
 import { ProtectedRoute } from '@/features/auth'
 import { HomePage } from '@/pages/home/home-page'
 import { LoginPage } from '@/pages/auth/login-page'
 import { ChatPage } from '@/pages/chat/chat-page'
-import { VerifyPage } from '@/pages/verify/verify-page'
 import { NotFoundPage } from '@/pages/not-found/not-found-page'
 
 export const router = createBrowserRouter([
@@ -30,7 +29,7 @@ export const router = createBrowserRouter([
       },
       {
         path: '/verify',
-        element: <VerifyPage />,
+        element: <Navigate to="/chat" replace />,
       },
       {
         path: '*',
