@@ -33,8 +33,8 @@ export function LoginForm({
   const { login } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const from =
-    (location.state as { from?: { pathname: string } })?.from?.pathname || '/chat'
+  const explicitFrom = (location.state as { from?: { pathname: string } })?.from?.pathname
+  const from = explicitFrom || '/chat'
 
   const [email, setEmail] = useState(initialEmail)
   const [password, setPassword] = useState('')
@@ -67,12 +67,13 @@ export function LoginForm({
 
     setIsSubmitting(true)
     try {
-      await login({ email: trimmedEmail, password })
+      const profile = await login({ email: trimmedEmail, password })
       toast.success('Đăng nhập thành công!')
       if (onSuccess) {
         onSuccess()
       } else {
-        navigate(from, { replace: true })
+        const defaultTarget = profile.role?.toLowerCase() === 'admin' ? '/admin' : '/chat'
+        navigate(explicitFrom || defaultTarget, { replace: true })
       }
     } catch (err) {
       setError(

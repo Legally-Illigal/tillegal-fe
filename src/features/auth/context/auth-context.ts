@@ -4,12 +4,13 @@ import type {
   LoginRequest,
   RegisterRequest,
   RegisterResponse,
+  UserProfile,
   VerifyRegistrationRequest,
   VerifyRegistrationResult,
 } from '../types/auth.types'
 
 export interface AuthContextValue extends AuthState {
-  login: (credentials: LoginRequest) => Promise<void>
+  login: (credentials: LoginRequest) => Promise<UserProfile>
   register: (credentials: RegisterRequest) => Promise<RegisterResponse>
   verifyRegistration: (
     credentials: VerifyRegistrationRequest,

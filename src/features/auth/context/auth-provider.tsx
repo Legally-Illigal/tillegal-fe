@@ -42,7 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const login = async (credentials: LoginRequest) => {
+  const login = async (credentials: LoginRequest): Promise<UserProfile> => {
     setIsLoading(true)
     try {
       const response = await authApi.login({
@@ -52,6 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const profile: UserProfile = response.user
       localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(profile))
       setUser(profile)
+      return profile
     } finally {
       setIsLoading(false)
     }

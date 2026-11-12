@@ -16,4 +16,13 @@ export const API_ENDPOINTS = {
   citations: {
     verify: '/citations/verify',
   },
+  admin: {
+    users: '/admin/users',
+    userDetail: (id: string) => `/admin/users/${id}`,
+    userStatus: (id: string) => `/admin/users/${id}/status`,
+    grantLawyer: (id: string) => `/admin/users/${id}/grant-lawyer`,
+    aiEvaluations: '/admin/ai-evaluations',
+    aiEvaluationSummary: '/admin/ai-evaluations/summary',
+    aiEvaluationDetail: (id: string) => `/admin/ai-evaluations/${id}`,
+  },
 } as const
