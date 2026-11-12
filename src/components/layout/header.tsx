@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
-import { LogOut, MessageSquare, Scale } from 'lucide-react'
+import { LogOut, MessageSquare, Scale, ShieldCheck } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -20,9 +20,12 @@ export function Header() {
   const location = useLocation()
   const { user, isAuthenticated, logout } = useAuth()
 
+  const isAdmin = isAuthenticated && user?.role?.toLowerCase() === 'admin'
+
   const navLinks = [
     { to: '/', label: t('nav.home'), icon: Scale },
     { to: '/chat', label: t('nav.chat'), icon: MessageSquare },
+    ...(isAdmin ? [{ to: '/admin', label: t('nav.admin'), icon: ShieldCheck }] : []),
   ]
 
   const userInitials = user?.fullName
@@ -135,6 +138,21 @@ export function Header() {
                     )}
                   </div>
                 </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {isAdmin && (
+                  <DropdownMenuItem asChild className="cursor-pointer">
+                    <Link to="/admin">
+                      <ShieldCheck className="mr-2 size-4" />
+                      <span>Quản trị hệ thống</span>
+                    </Link>
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem asChild className="cursor-pointer md:hidden">
+                  <Link to="/chat">
+                    <MessageSquare className="mr-2 size-4" />
+                    <span>{t('nav.chat')}</span>
+                  </Link>
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={() => void logout()}
