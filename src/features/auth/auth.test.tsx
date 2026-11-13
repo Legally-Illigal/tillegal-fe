@@ -146,6 +146,29 @@ describe('Auth Feature', () => {
       )
       expect(regRes).toEqual(mockGoogleRes)
     })
+
+    it('calls getMe and logout endpoints correctly', async () => {
+      const mockUser = {
+        id: 'u-current',
+        fullName: 'Current User',
+        email: 'current@example.com',
+        phoneNumber: '0912345678',
+        role: 'User',
+        isActive: true,
+      }
+      vi.mocked(apiClient.get).mockResolvedValueOnce(mockUser)
+
+      const me = await authApi.getMe({ silent401: true })
+      expect(apiClient.get).toHaveBeenCalledWith('/auth/me', { silent401: true })
+      expect(me).toEqual(mockUser)
+
+      const mockLogoutRes = { message: 'Logged out successfully.' }
+      vi.mocked(apiClient.post).mockResolvedValueOnce(mockLogoutRes)
+
+      const logoutRes = await authApi.logout()
+      expect(apiClient.post).toHaveBeenCalledWith('/auth/logout')
+      expect(logoutRes).toEqual(mockLogoutRes)
+    })
   })
 
   describe('auth-error-helper', () => {
@@ -424,6 +447,140 @@ describe('Auth Feature', () => {
         expect(screen.getByTestId('auth-status')).toHaveTextContent('anonymous')
         expect(localStorage.getItem('tillegal_user_profile')).toBeNull()
       })
+    })
+
+    it('syncs user profile when getMe succeeds with active account', async () => {
+      localStorage.setItem(
+        'tillegal_user_profile',
+        JSON.stringify({
+          id: 'u-100',
+          email: 'user100@example.com',
+          fullName: 'Old Name',
+          role: 'User',
+        }),
+      )
+
+      vi.mocked(apiClient.get).mockResolvedValueOnce({
+        id: 'u-100',
+        email: 'user100@example.com',
+        fullName: 'Updated Name',
+        role: 'Lawyer',
+        isActive: true,
+      })
+
+      render(
+        <AuthProvider>
+          <TestConsumer />
+        </AuthProvider>,
+      )
+
+      await waitFor(() => {
+        expect(screen.getByTestId('auth-status')).toHaveTextContent('logged-in')
+      })
+
+      const updated = JSON.parse(localStorage.getItem('tillegal_user_profile') || '{}')
+      expect(updated.fullName).toBe('Updated Name')
+      expect(updated.role).toBe('Lawyer')
+    })
+
+    it('logs out and clears storage when getMe detects deactivated account', async () => {
+      localStorage.setItem(
+        'tillegal_user_profile',
+        JSON.stringify({
+          id: 'u-banned',
+          email: 'banned@example.com',
+          fullName: 'Banned User',
+          role: 'User',
+        }),
+      )
+
+      vi.mocked(apiClient.get).mockResolvedValueOnce({
+        id: 'u-banned',
+        email: 'banned@example.com',
+        fullName: 'Banned User',
+        role: 'User',
+        isActive: false,
+      })
+
+      render(
+        <AuthProvider>
+          <TestConsumer />
+        </AuthProvider>,
+      )
+
+      await waitFor(() => {
+        expect(screen.getByTestId('auth-status')).toHaveTextContent('anonymous')
+        expect(localStorage.getItem('tillegal_user_profile')).toBeNull()
+      })
+    })
+
+    it('clears user profile and local state when auth:session-mismatch event is dispatched', async () => {
+      localStorage.setItem(
+        'tillegal_user_profile',
+        JSON.stringify({
+          id: 'u-active',
+          email: 'active@example.com',
+          fullName: 'Active User',
+          role: 'User',
+        }),
+      )
+
+      render(
+        <AuthProvider>
+          <TestConsumer />
+        </AuthProvider>,
+      )
+
+      expect(screen.getByTestId('auth-status')).toHaveTextContent('logged-in')
+
+      // Simulate session mismatch event inside act
+      act(() => {
+        window.dispatchEvent(
+          new CustomEvent('auth:session-mismatch', {
+            detail: { expectedUserId: 'u-active', foundUserId: 'u-other' },
+          }),
+        )
+      })
+
+      await waitFor(() => {
+        expect(screen.getByTestId('auth-status')).toHaveTextContent('anonymous')
+        expect(localStorage.getItem('tillegal_user_profile')).toBeNull()
+      })
+    })
+
+    it('detects session mismatch directly via getMe and fires auth:session-mismatch', async () => {
+      localStorage.setItem(
+        'tillegal_user_profile',
+        JSON.stringify({
+          id: 'u-vite',
+          email: 'vite@example.com',
+          fullName: 'Vite User',
+          role: 'User',
+        }),
+      )
+
+      vi.mocked(apiClient.get).mockResolvedValueOnce({
+        id: 'u-swagger',
+        email: 'swagger@example.com',
+        fullName: 'Swagger User',
+        role: 'User',
+        isActive: true,
+      })
+
+      const mismatchSpy = vi.fn()
+      window.addEventListener('auth:session-mismatch', mismatchSpy)
+
+      render(
+        <AuthProvider>
+          <TestConsumer />
+        </AuthProvider>,
+      )
+
+      await waitFor(() => {
+        expect(mismatchSpy).toHaveBeenCalled()
+      })
+
+      window.removeEventListener('auth:session-mismatch', mismatchSpy)
     })
   })
 })

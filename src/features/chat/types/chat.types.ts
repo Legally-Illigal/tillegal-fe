@@ -39,3 +39,26 @@ export interface AskQuestionResponse {
   userMessage: ConversationMessage
   assistantMessage: ConversationMessage
 }
+
+export interface ConversationAttachment {
+  id: string
+  conversationId: string
+  userId: string
+  fileName: string | null
+  fileSize: number
+  contentType: string | null
+  processingStatus: string | null
+  tokenCount: number | null
+  fileHash: string | null
+  createdAt: string
+  updatedAt: string | null
+}
+
+export interface AttachmentUploadTask {
+  tempId: string
+  fileName: string
+  fileSize: number
+  progress: number
+  status: 'uploading' | 'error'
+  error?: string
+}

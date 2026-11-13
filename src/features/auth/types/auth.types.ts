@@ -18,6 +18,21 @@ export interface LoginRequest {
 export interface LoginResponse {
   user: LoginUserInfo
   message: string
+  accessToken?: string
+  expiresIn?: number
+}
+
+export interface CurrentUserResponse {
+  id: string
+  fullName: string
+  email: string | null
+  phoneNumber: string | null
+  role: UserRole | null
+  isActive: boolean
+}
+
+export interface LogoutResponse {
+  message: string
 }
 
 export interface RegisterRequest {
@@ -69,6 +84,7 @@ export interface GoogleAuthResponse {
   email: string
   fullName: string
   message: string
+  accessToken?: string
 }
 
 export interface AuthState {

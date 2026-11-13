@@ -1,10 +1,12 @@
-import { Menu, PanelLeftClose, PanelLeftOpen, Plus, Scale } from 'lucide-react'
+import { Menu, PanelLeftClose, PanelLeftOpen, Paperclip, Plus, Scale } from 'lucide-react'
 import * as React from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { useAuth } from '@/features/auth'
 import {
+  AttachmentDrawer,
   ChatInput,
   ChatSidebar,
   LegalDisclaimer,
@@ -18,12 +20,19 @@ export function ChatPage() {
   const { user } = useAuth()
   const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(false)
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = React.useState(false)
+  const [isAttachmentDrawerOpen, setIsAttachmentDrawerOpen] = React.useState(false)
 
   const {
     conversations,
     activeConversationId,
     activeConversation,
     messages,
+    attachments,
+    isAttachmentsLoading,
+    uploadTasks,
+    isUploadingAttachment,
+    deletingAttachmentIds,
+    downloadingAttachmentId,
     isLoading,
     selectedCitation,
     isCitationDrawerOpen,
@@ -33,6 +42,13 @@ export function ChatPage() {
     createNewChat,
     selectConversation,
     deleteConversation,
+    uploadAttachments,
+    refreshAttachments,
+    refreshAttachmentDetail,
+    deleteAttachment,
+    downloadAttachment,
+    dismissUploadTask,
+    clearFailedUploadTasks,
   } = useChat()
 
   // Xử lý query param `?q=...` truyền từ Trang Chủ
@@ -67,6 +83,9 @@ export function ChatPage() {
           onSelect={(id) => selectConversation(id)}
           onNewChat={createNewChat}
           onDelete={deleteConversation}
+          onOpenAttachments={() => setIsAttachmentDrawerOpen(true)}
+          attachmentsCount={attachments.length}
+          isUploadingAttachment={isUploadingAttachment}
           className="w-full"
         />
       </aside>
@@ -118,6 +137,12 @@ export function ChatPage() {
                     setIsMobileSidebarOpen(false)
                   }}
                   onDelete={deleteConversation}
+                  onOpenAttachments={() => {
+                    setIsMobileSidebarOpen(false)
+                    setIsAttachmentDrawerOpen(true)
+                  }}
+                  attachmentsCount={attachments.length}
+                  isUploadingAttachment={isUploadingAttachment}
                   className="h-full w-full border-r-0"
                 />
               </SheetContent>
@@ -131,16 +156,37 @@ export function ChatPage() {
             </div>
           </div>
 
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={createNewChat}
-            className="h-8 gap-1 text-xs"
-          >
-            <Plus className="size-3.5" />
-            <span className="hidden sm:inline">Hội thoại mới</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsAttachmentDrawerOpen(true)}
+              className="h-8 gap-1.5 text-xs"
+            >
+              <Paperclip className="size-3.5" />
+              <span className="hidden sm:inline">Tài liệu</span>
+              {(attachments.length > 0 || isUploadingAttachment) && (
+                <Badge
+                  variant="secondary"
+                  className="bg-primary/10 text-primary px-1.5 py-0 text-[10px]"
+                >
+                  {attachments.length}
+                </Badge>
+              )}
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={createNewChat}
+              className="h-8 gap-1 text-xs"
+            >
+              <Plus className="size-3.5" />
+              <span className="hidden sm:inline">Hội thoại mới</span>
+            </Button>
+          </div>
         </div>
 
         {/* Scrollable Messages Area */}
@@ -156,7 +202,16 @@ export function ChatPage() {
 
         {/* Docked Chat Input Bar */}
         <div className="border-border/40 bg-background/80 border-t pt-3 pb-2 backdrop-blur-xs">
-          <ChatInput onSend={sendMessage} isLoading={isLoading} />
+          <ChatInput
+            onSend={sendMessage}
+            isLoading={isLoading}
+            attachments={attachments}
+            uploadTasks={uploadTasks}
+            isUploadingAttachment={isUploadingAttachment}
+            onUploadFiles={uploadAttachments}
+            onOpenAttachments={() => setIsAttachmentDrawerOpen(true)}
+            onDeleteAttachment={deleteAttachment}
+          />
           <LegalDisclaimer />
         </div>
       </main>
@@ -166,6 +221,24 @@ export function ChatPage() {
         citation={selectedCitation}
         open={isCitationDrawerOpen}
         onOpenChange={setIsCitationDrawerOpen}
+      />
+
+      {/* Conversation Attachments Drawer */}
+      <AttachmentDrawer
+        open={isAttachmentDrawerOpen}
+        onOpenChange={setIsAttachmentDrawerOpen}
+        attachments={attachments}
+        isLoading={isAttachmentsLoading}
+        uploadTasks={uploadTasks}
+        deletingIds={deletingAttachmentIds}
+        downloadingId={downloadingAttachmentId}
+        onUploadFiles={uploadAttachments}
+        onRefresh={refreshAttachments}
+        onRefreshDetail={refreshAttachmentDetail}
+        onDelete={deleteAttachment}
+        onDownload={downloadAttachment}
+        onDismissUploadTask={dismissUploadTask}
+        onClearFailedUploadTasks={clearFailedUploadTasks}
       />
     </div>
   )
