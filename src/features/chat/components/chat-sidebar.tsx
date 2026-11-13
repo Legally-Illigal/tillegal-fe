@@ -1,5 +1,14 @@
-import { Home, MessageSquare, Plus, Scale, Trash2 } from 'lucide-react'
+import {
+  FolderOpen,
+  Home,
+  Loader2,
+  MessageSquare,
+  Plus,
+  Scale,
+  Trash2,
+} from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
@@ -11,6 +20,9 @@ export interface ChatSidebarProps {
   onSelect: (id: string) => void
   onNewChat: () => void
   onDelete: (id: string) => void
+  onOpenAttachments?: () => void
+  attachmentsCount?: number
+  isUploadingAttachment?: boolean
   className?: string
 }
 
@@ -20,6 +32,9 @@ export function ChatSidebar({
   onSelect,
   onNewChat,
   onDelete,
+  onOpenAttachments,
+  attachmentsCount = 0,
+  isUploadingAttachment = false,
   className,
 }: ChatSidebarProps) {
   const formatDate = (isoString?: string) => {
@@ -70,6 +85,33 @@ export function ChatSidebar({
           <Plus className="size-4" />
           <span>Cuộc trò chuyện mới</span>
         </Button>
+
+        {onOpenAttachments && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onOpenAttachments}
+            className="mt-2 w-full justify-between text-xs font-medium"
+            size="sm"
+          >
+            <span className="flex items-center gap-2">
+              {isUploadingAttachment ? (
+                <Loader2 className="text-primary size-4 animate-spin" />
+              ) : (
+                <FolderOpen className="text-primary size-4" />
+              )}
+              <span>Quản lý tài liệu</span>
+            </span>
+            {attachmentsCount > 0 && (
+              <Badge
+                variant="secondary"
+                className="bg-primary/10 text-primary px-1.5 py-0 text-[10px]"
+              >
+                {attachmentsCount}
+              </Badge>
+            )}
+          </Button>
+        )}
       </div>
 
       {/* Conversation List */}

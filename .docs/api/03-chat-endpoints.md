@@ -31,6 +31,20 @@ export interface Conversation {
   createdAt: string // ISO 8601 DateTimeOffset
   updatedAt?: string | null
 }
+
+export interface ConversationAttachment {
+  id: string // Guid
+  conversationId: string // Guid
+  userId: string // Guid
+  fileName: string | null
+  fileSize: number // int64
+  contentType: string | null
+  processingStatus: string | null
+  tokenCount: number | null
+  fileHash: string | null
+  createdAt: string // ISO 8601 DateTimeOffset
+  updatedAt: string | null
+}
 ```
 
 ## 2. Danh Sách Endpoint
@@ -130,3 +144,13 @@ Backend sẽ gửi câu hỏi kèm lịch sử trao đổi đến Python AI Serv
     }
   ]
   ```
+
+---
+
+### D. Tài Liệu Đính Kèm Trong Cuộc Hội Thoại (`/api/Conversations/{conversationId}/attachments`)
+
+- **`POST /api/Conversations/{conversationId}/attachments`** (`multipart/form-data` với trường `file`): Tải tài liệu lên cuộc hội thoại. Trả về `201 Created` với `AttachmentApiResponse` (hệ thống tự động trả về `fileName`, `fileSize`, `contentType`, `processingStatus`, `tokenCount`, `fileHash`, `createdAt`, `updatedAt`).
+- **`GET /api/Conversations/{conversationId}/attachments`**: Lấy danh sách tài liệu đính kèm trong cuộc hội thoại (`200 OK` -> `AttachmentApiResponse[]`).
+- **`GET /api/Conversations/{conversationId}/attachments/{attachmentId}`**: Lấy chi tiết metadata một tài liệu đính kèm (`200 OK` -> `AttachmentApiResponse`).
+- **`DELETE /api/Conversations/{conversationId}/attachments/{attachmentId}`**: Xóa tài liệu đính kèm (`204 No Content`).
+- **`GET /api/Conversations/{conversationId}/attachments/{attachmentId}/download`**: Tải xuống nội dung tệp nhị phân (`200 OK` -> binary stream).

@@ -6,12 +6,19 @@ export const API_ENDPOINTS = {
     login: '/auth/login',
     registerGoogle: '/auth/register/google',
     loginGoogle: '/auth/login/google',
+    logout: '/auth/logout',
+    me: '/auth/me',
   },
   conversations: {
     list: '/conversations',
     create: '/conversations',
     detail: (id: string) => `/conversations/${id}`,
     messages: (id: string) => `/conversations/${id}/messages`,
+    attachments: (id: string) => `/conversations/${id}/attachments`,
+    attachmentDetail: (id: string, attachmentId: string) =>
+      `/conversations/${id}/attachments/${attachmentId}`,
+    attachmentDownload: (id: string, attachmentId: string) =>
+      `/conversations/${id}/attachments/${attachmentId}/download`,
   },
   citations: {
     verify: '/citations/verify',
