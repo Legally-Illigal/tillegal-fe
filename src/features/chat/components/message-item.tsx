@@ -1,9 +1,19 @@
-import { Bot, Check, Copy, Scale, User } from 'lucide-react'
+import {
+  Bot,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Copy,
+  Pencil,
+  Scale,
+  User,
+} from 'lucide-react'
 import * as React from 'react'
 import { toast } from 'sonner'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
 import { CitationCard, type CitationItem } from '@/features/citation'
 import { cn } from '@/lib/utils'
 import type { ConversationMessage } from '../types/chat.types'
@@ -12,16 +22,36 @@ import { MessageContent } from './message-content'
 export interface MessageItemProps {
   message: ConversationMessage
   onSelectCitation?: (citation: CitationItem) => void
+  onEditMessage?: (messageId: string, newContent: string) => Promise<void>
+  onEditInPlace?: (messageId: string, newContent: string) => Promise<void>
+  onSwitchBranch?: (messageId: string, branchIndex: number) => void
   userInitial?: string
 }
 
 export function MessageItem({
   message,
   onSelectCitation,
+  onEditMessage,
+  onEditInPlace,
+  onSwitchBranch,
   userInitial = 'ND',
 }: MessageItemProps) {
   const isUser = message.role === 'user'
   const [copied, setCopied] = React.useState(false)
+  const [isEditing, setIsEditing] = React.useState(false)
+  const [editContent, setEditContent] = React.useState(message.content)
+  const [isSavingInPlace, setIsSavingInPlace] = React.useState(false)
+  const [isSavingBranch, setIsSavingBranch] = React.useState(false)
+
+  const branches = message.branches || []
+  const totalBranches = branches.length
+  const activeBranchIndex = message.activeBranchIndex ?? 0
+  const hasBranches = totalBranches > 1
+
+  // Đồng bộ editContent khi message thay đổi
+  React.useEffect(() => {
+    setEditContent(message.content)
+  }, [message.content])
 
   const handleCopy = async () => {
     try {
@@ -31,6 +61,44 @@ export function MessageItem({
       setTimeout(() => setCopied(false), 2000)
     } catch {
       toast.error('Không thể sao chép')
+    }
+  }
+
+  const handleSaveInPlace = async () => {
+    const trimmed = editContent.trim()
+    if (!trimmed || trimmed === message.content) {
+      setIsEditing(false)
+      return
+    }
+
+    const editFn = onEditInPlace || onEditMessage
+    if (editFn) {
+      setIsSavingInPlace(true)
+      try {
+        await editFn(message.id, trimmed)
+        setIsEditing(false)
+      } catch {
+        // Lỗi đã được toast trong hook
+      } finally {
+        setIsSavingInPlace(false)
+      }
+    }
+  }
+
+  const handleSaveBranch = async () => {
+    const trimmed = editContent.trim()
+    if (!trimmed) return
+
+    if (onEditMessage) {
+      setIsSavingBranch(true)
+      try {
+        await onEditMessage(message.id, trimmed)
+        setIsEditing(false)
+      } catch {
+        // Lỗi đã được toast trong hook
+      } finally {
+        setIsSavingBranch(false)
+      }
     }
   }
 
@@ -83,21 +151,120 @@ export function MessageItem({
         <div className="text-muted-foreground flex items-center gap-2 px-1 text-[11px]">
           <span className="font-medium">{isUser ? 'Bạn' : 'Trợ lý Tillegal AI'}</span>
           {message.createdAt && <span>• {formatTime(message.createdAt)}</span>}
+          {message.updatedAt && (
+            <span className="text-[10px] italic">(đã chỉnh sửa)</span>
+          )}
+
+          {/* Branch Navigator */}
+          {isUser && (
+            <div
+              className={cn(
+                'flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium transition-colors',
+                hasBranches
+                  ? 'bg-muted/80 text-foreground'
+                  : 'bg-muted/40 text-muted-foreground',
+              )}
+            >
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-xs"
+                className="text-muted-foreground hover:text-foreground h-4 w-4 p-0"
+                disabled={!hasBranches || activeBranchIndex <= 0}
+                onClick={() => onSwitchBranch?.(message.id, activeBranchIndex - 1)}
+                title="Nhánh trước"
+                aria-label="Nhánh trước"
+              >
+                <ChevronLeft className="size-3" />
+              </Button>
+              <span className="tabular-nums">
+                {hasBranches ? `${activeBranchIndex + 1}/${totalBranches}` : '1/1'}
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-xs"
+                className="text-muted-foreground hover:text-foreground h-4 w-4 p-0"
+                disabled={!hasBranches || activeBranchIndex >= totalBranches - 1}
+                onClick={() => onSwitchBranch?.(message.id, activeBranchIndex + 1)}
+                title="Nhánh tiếp theo"
+                aria-label="Nhánh tiếp theo"
+              >
+                <ChevronRight className="size-3" />
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Content Bubble */}
         <div
           className={cn(
             'relative rounded-2xl px-4 py-3 shadow-xs',
-            isUser
-              ? 'bg-primary text-primary-foreground rounded-tr-xs'
-              : 'bg-card border-border/80 text-foreground rounded-tl-xs border',
+            isEditing
+              ? 'bg-card border-border/80 text-foreground w-full min-w-[280px] border sm:min-w-[420px]'
+              : isUser
+                ? 'bg-primary text-primary-foreground rounded-tr-xs'
+                : 'bg-card border-border/80 text-foreground rounded-tl-xs border',
           )}
         >
           {isUser ? (
-            <p className="text-xs leading-relaxed whitespace-pre-wrap sm:text-sm">
-              {message.content}
-            </p>
+            isEditing ? (
+              <div className="flex flex-col gap-2">
+                <Textarea
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                  className="focus-visible:ring-primary min-h-20 border-zinc-300 bg-white text-xs text-black placeholder:text-zinc-400 sm:text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:placeholder:text-zinc-500"
+                  placeholder="Nhập nội dung chỉnh sửa..."
+                  autoFocus
+                />
+                <div className="flex flex-wrap items-center justify-end gap-1.5 pt-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="xs"
+                    onClick={() => {
+                      setIsEditing(false)
+                      setEditContent(message.content)
+                    }}
+                    disabled={isSavingInPlace || isSavingBranch}
+                    className="h-7 px-2.5 text-xs font-medium text-zinc-700 dark:text-zinc-300"
+                  >
+                    Hủy
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="xs"
+                    onClick={handleSaveInPlace}
+                    disabled={
+                      !editContent.trim() ||
+                      editContent.trim() === message.content ||
+                      isSavingInPlace ||
+                      isSavingBranch
+                    }
+                    className="h-7 px-3 text-xs font-medium"
+                    title="Sửa trực tiếp nội dung tin nhắn, dùng cho sửa lỗi chính tả"
+                  >
+                    {isSavingInPlace ? 'Đang lưu...' : 'Sửa tại chỗ'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="default"
+                    size="xs"
+                    onClick={handleSaveBranch}
+                    disabled={!editContent.trim() || isSavingInPlace || isSavingBranch}
+                    className="h-7 px-3 text-xs font-medium"
+                    title="Tạo nhánh câu hỏi mới kèm câu trả lời tiếp theo từ AI"
+                  >
+                    {isSavingBranch ? 'Đang tạo...' : 'Tạo nhánh mới'}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs leading-relaxed whitespace-pre-wrap sm:text-sm">
+                {message.content}
+              </p>
+            )
           ) : (
             <div className="space-y-4">
               <MessageContent
@@ -141,8 +308,8 @@ export function MessageItem({
         </div>
 
         {/* Action Toolbar */}
-        {!isUser && (
-          <div className="flex items-center gap-1 px-1 opacity-0 transition-opacity group-hover:opacity-100">
+        {!isEditing && (
+          <div className="flex items-center gap-1 opacity-80 transition-opacity hover:opacity-100">
             <Button
               type="button"
               variant="ghost"
@@ -150,6 +317,7 @@ export function MessageItem({
               className="text-muted-foreground hover:text-foreground h-6 w-6"
               onClick={handleCopy}
               title="Sao chép nội dung"
+              aria-label="Sao chép nội dung"
             >
               {copied ? (
                 <Check className="size-3 text-emerald-600" />
@@ -157,6 +325,20 @@ export function MessageItem({
                 <Copy className="size-3" />
               )}
             </Button>
+
+            {isUser && (onEditInPlace || onEditMessage) && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-xs"
+                className="text-muted-foreground hover:text-foreground h-6 w-6"
+                onClick={() => setIsEditing(true)}
+                title="Sửa tin nhắn"
+                aria-label="Sửa tin nhắn"
+              >
+                <Pencil className="size-3" />
+              </Button>
+            )}
           </div>
         )}
       </div>
