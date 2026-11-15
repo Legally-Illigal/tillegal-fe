@@ -18,10 +18,12 @@ export interface CitationItem {
 export interface ConversationMessage {
   id: string // Guid
   conversationId: string // Guid
+  parentMessageId?: string | null // Guid? - Khóa ngoại tự tham chiếu tin nhắn cha (cho phép phân nhánh cây)
   role: 'user' | 'assistant'
   content: string // Nội dung Markdown, có chứa ký hiệu chú dẫn trích dẫn [^1]
   citations?: CitationItem[] | null // Danh sách các căn cứ điều luật do AI trích dẫn
   createdAt: string // ISO 8601 DateTimeOffset
+  updatedAt?: string | null
 }
 
 export interface Conversation {
@@ -69,15 +71,18 @@ Backend sẽ gửi câu hỏi kèm lịch sử trao đổi đến Python AI Serv
 - **Request Body:**
   ```json
   {
-    "content": "Tôi muốn biết thủ tục sang tên sổ đỏ khi nhận thừa kế cần những giấy tờ gì?"
+    "content": "Tôi muốn biết thủ tục sang tên sổ đỏ khi nhận thừa kế cần những giấy tờ gì?",
+    "parentMessageId": "40000000-0000-0000-0000-000000000000"
   }
   ```
+  _(Trường `parentMessageId` là tùy chọn; truyền null hoặc bỏ trống đối với tin nhắn khởi đầu, hoặc truyền ID của tin nhắn cha để tạo chuỗi nối tiếp / phân nhánh câu hỏi)._
 - **Response (200 OK):**
   ```json
   {
     "userMessage": {
       "id": "40000000-0000-0000-0000-000000000001",
       "conversationId": "30000000-0000-0000-0000-000000000001",
+      "parentMessageId": "40000000-0000-0000-0000-000000000000",
       "role": "user",
       "content": "Tôi muốn biết thủ tục sang tên sổ đỏ khi nhận thừa kế cần những giấy tờ gì?",
       "citations": null,
@@ -86,6 +91,7 @@ Backend sẽ gửi câu hỏi kèm lịch sử trao đổi đến Python AI Serv
     "assistantMessage": {
       "id": "40000000-0000-0000-0000-000000000002",
       "conversationId": "30000000-0000-0000-0000-000000000001",
+      "parentMessageId": "40000000-0000-0000-0000-000000000001",
       "role": "assistant",
       "content": "### 1. Cơ sở pháp lý\nCăn cứ quy định tại Luật Đất đai[^1]...",
       "citations": [
@@ -130,3 +136,111 @@ Backend sẽ gửi câu hỏi kèm lịch sử trao đổi đến Python AI Serv
     }
   ]
   ```
+<<<<<<< Updated upstream
+=======
+
+---
+
+### D. Tài Liệu Đính Kèm Trong Cuộc Hội Thoại (`/api/Conversations/{conversationId}/attachments`)
+
+- **`POST /api/Conversations/{conversationId}/attachments`** (`multipart/form-data` với trường `file`): Tải tài liệu lên cuộc hội thoại. Trả về `201 Created` với `AttachmentApiResponse` (hệ thống tự động trả về `fileName`, `fileSize`, `contentType`, `processingStatus`, `tokenCount`, `fileHash`, `createdAt`, `updatedAt`).
+- **`GET /api/Conversations/{conversationId}/attachments`**: Lấy danh sách tài liệu đính kèm trong cuộc hội thoại (`200 OK` -> `AttachmentApiResponse[]`).
+- **`GET /api/Conversations/{conversationId}/attachments/{attachmentId}`**: Lấy chi tiết metadata một tài liệu đính kèm (`200 OK` -> `AttachmentApiResponse`).
+- **`DELETE /api/Conversations/{conversationId}/attachments/{attachmentId}`**: Xóa tài liệu đính kèm (`204 No Content`).
+- **`GET /api/Conversations/{conversationId}/attachments/{attachmentId}/download`**: Tải xuống nội dung tệp nhị phân (`200 OK` -> binary stream).
+
+---
+
+### E. Cập Nhật Tiêu Đề Cuộc Hội Thoại (`PUT /api/conversations/{id}`)
+
+- **URL Params:** `id` (Guid của cuộc hội thoại)
+- **Request Body:**
+  ```json
+  {
+    "title": "Tư vấn tranh chấp thừa kế đất đai"
+  }
+  ```
+- **Response (200 OK):** `ConversationApiResponse`
+  ```json
+  {
+    "id": "30000000-0000-0000-0000-000000000001",
+    "userId": "20000000-0000-0000-0000-000000000001",
+    "title": "Tư vấn tranh chấp thừa kế đất đai",
+    "createdAt": "2026-10-26T14:00:00Z",
+    "updatedAt": "2026-10-26T14:15:00Z"
+  }
+  ```
+
+---
+
+### F. Xóa Cuộc Hội Thoại (`DELETE /api/conversations/{id}`)
+
+- **URL Params:** `id` (Guid của cuộc hội thoại)
+- **Response (204 No Content):** Xóa toàn bộ đoạn hội thoại và các tài liệu đính kèm liên quan.
+
+---
+
+### G. Cập Nhật Tin Nhắn Tại Chỗ (`PUT /api/conversations/{conversationId}/messages/{messageId}`)
+
+- **URL Params:** `conversationId` (Guid), `messageId` (Guid)
+- **Request Body:**
+  ```json
+  {
+    "content": "Tôi muốn biết thủ tục tặng cho đất đai thay vì thừa kế cần giấy tờ gì?",
+    "citations": null
+  }
+  ```
+- **Response (200 OK):** `MessageApiResponse`
+  ```json
+  {
+    "id": "40000000-0000-0000-0000-000000000001",
+    "conversationId": "30000000-0000-0000-0000-000000000001",
+    "role": "user",
+    "content": "Tôi muốn biết thủ tục tặng cho đất đai thay vì thừa kế cần giấy tờ gì?",
+    "citations": null,
+    "createdAt": "2026-10-26T14:01:00Z",
+    "updatedAt": "2026-10-26T14:20:00Z"
+  }
+  ```
+- **Mô tả hành vi trên Frontend:**
+  - Khi người dùng chỉnh sửa câu hỏi của mình, Backend nhận yêu cầu cập nhật qua `PUT /api/conversations/{conversationId}/messages/{messageId}`.
+  - Trên Frontend, hệ thống quản lý rẽ nhánh dạng cây (tree branching) trực quan: phiên bản câu hỏi cũ cùng các phản hồi sau đó được lưu thành nhánh (`< 1/2 >`), câu hỏi mới tạo ra nhánh mới (`< 2/2 >`) kèm phản hồi mới tương ứng từ AI.
+  - Người dùng có thể dễ dàng chuyển qua lại giữa các phiên bản/nhánh bằng các nút điều hướng `<` và `>` ngay trên tin nhắn. Trạng thái phân nhánh được lưu trữ bền vững tại Client (`localStorage`).
+
+---
+
+### H. Xóa Tin Nhắn Trong Cuộc Hội Thoại (`DELETE /api/conversations/{conversationId}/messages/{messageId}`)
+
+- **URL Params:** `conversationId` (Guid), `messageId` (Guid)
+- **Response (204 No Content):** Đánh dấu xóa mềm tin nhắn trong cơ sở dữ liệu. Client đã tích hợp sẵn phương thức `chatApi.deleteMessage(conversationId, messageId)`.
+
+---
+
+### I. Tách Nhánh Hội Thoại Thành Cuộc Trò Chuyện Mới (`POST /api/conversations/{id}/fork`)
+
+- **URL Params:** `id` (Guid của cuộc hội thoại nguồn)
+- **Request Body:**
+  ```json
+  {
+    "fromMessageId": "40000000-0000-0000-0000-000000000001",
+    "newTitle": "Tư vấn thừa kế đất đai (Nhánh mới)",
+    "newPrompt": "Nếu người thừa kế từ chối nhận di sản thì xử lý thế nào?"
+  }
+  ```
+  _(Cả `fromMessageId`, `newTitle`, `newPrompt` đều là tùy chọn)._
+- **Response (200 OK / 201 Created):** `ConversationApiResponse`
+  ```json
+  {
+    "id": "30000000-0000-0000-0000-000000000002",
+    "userId": "20000000-0000-0000-0000-000000000001",
+    "title": "Tư vấn thừa kế đất đai (Nhánh mới)",
+    "createdAt": "2026-10-26T14:25:00Z",
+    "updatedAt": null
+  }
+  ```
+- **Mô tả hành vi trên Frontend:**
+  - Thay vì lưu các nhánh trong cùng một cuộc trò chuyện (tree branching phức tạp), hệ thống fork tạo ra một cuộc trò chuyện độc lập mới.
+  - Sao chép toàn bộ ngữ cảnh và các tin nhắn từ đầu tới vị trí `fromMessageId` (nếu có).
+  - Nếu cung cấp `newPrompt`, thêm câu hỏi mới vào cuộc trò chuyện mới và kích hoạt AI phản hồi.
+  - Người dùng có thể thực hiện tách nhánh qua nút "Tách nhánh từ tin nhắn này" trên thanh công cụ tin nhắn, hoặc chọn "Lưu & Rẽ nhánh mới" khi đang chỉnh sửa nội dung tin nhắn.
+>>>>>>> Stashed changes

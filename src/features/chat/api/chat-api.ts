@@ -6,12 +6,53 @@ import type {
   Conversation,
   ConversationMessage,
   CreateConversationRequest,
+  ForkConversationRequest,
+  MessageBranch,
+  UpdateConversationRequest,
+  UpdateMessageRequest,
 } from '../types/chat.types'
 
 export function getConversationsStorageKey(userId?: string | null): string {
   return userId
     ? `tillegal_saved_conversations_${userId}`
     : 'tillegal_saved_conversations_guest'
+}
+
+export function getMessageBranchesStorageKey(conversationId: string): string {
+  return `tillegal_message_branches_${conversationId}`
+}
+
+export function getStoredMessageBranches(
+  conversationId: string,
+): Record<string, { branches: MessageBranch[]; activeBranchIndex: number }> {
+  try {
+    const key = getMessageBranchesStorageKey(conversationId)
+    const raw = localStorage.getItem(key)
+    if (!raw) return {}
+    return JSON.parse(raw)
+  } catch {
+    return {}
+  }
+}
+
+export function saveStoredMessageBranches(
+  conversationId: string,
+  branchesMap: Record<string, { branches: MessageBranch[]; activeBranchIndex: number }>,
+): void {
+  try {
+    const key = getMessageBranchesStorageKey(conversationId)
+    localStorage.setItem(key, JSON.stringify(branchesMap))
+  } catch {
+    // ignore local storage error
+  }
+}
+
+export function clearStoredMessageBranches(conversationId: string): void {
+  try {
+    localStorage.removeItem(getMessageBranchesStorageKey(conversationId))
+  } catch {
+    // ignore local storage error
+  }
 }
 
 /**
@@ -42,20 +83,31 @@ export function normalizeMessage(raw: unknown): ConversationMessage {
   const roleStr = String(m.role || '').toLowerCase()
   const role: 'user' | 'assistant' = roleStr === 'assistant' ? 'assistant' : 'user'
 
+  const rawParentId = m.parentMessageId ?? m.parent_message_id
+  const parentMessageId =
+    rawParentId != null && String(rawParentId).trim() !== '' ? String(rawParentId) : null
+
   return {
     id: String(m.id || `msg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`),
     conversationId: String(m.conversationId ?? m.conversation_id ?? ''),
+    parentMessageId,
     role,
     content: String(m.content ?? ''),
     citations: Array.isArray(citations) ? (citations as CitationItem[]) : null,
     createdAt: String(m.createdAt ?? m.created_at ?? new Date().toISOString()),
+    updatedAt:
+      m.updatedAt != null
+        ? String(m.updatedAt)
+        : m.updated_at != null
+          ? String(m.updated_at)
+          : null,
   }
 }
 
 /**
  * Trả lời tự động kèm trích dẫn văn bản quy phạm pháp luật
  */
-function generateAssistantReply(question: string): {
+export function generateAssistantReply(question: string): {
   content: string
   citations: CitationItem[]
 } {
@@ -228,7 +280,96 @@ export const chatApi = {
   },
 
   /**
+<<<<<<< Updated upstream
    * Lấy danh sách cuộc hội thoại từ máy chủ (fallback về LocalStorage của đúng user)
+=======
+   * Cập nhật tiêu đề cuộc hội thoại (PUT /api/conversations/{id})
+   */
+  async updateConversation(
+    id: string,
+    titleOrData: string | UpdateConversationRequest,
+    userId?: string | null,
+  ): Promise<Conversation> {
+    const title = typeof titleOrData === 'string' ? titleOrData : titleOrData.title
+    const raw = await apiClient.put<Conversation>(
+      API_ENDPOINTS.conversations.detail(id),
+      { title },
+    )
+    const response = normalizeConversation(raw)
+    const normalizedUserId = userId ? String(userId).toLowerCase() : null
+
+    // SECURITY CHECK: Xác thực quyền sở hữu cuộc trò chuyện vừa cập nhật
+    if (
+      normalizedUserId &&
+      response.userId &&
+      response.userId.toLowerCase() !== normalizedUserId
+    ) {
+      console.error(
+        `[SECURITY] Session mismatch on updateConversation! Expected "${normalizedUserId}" but updated under "${response.userId}".`,
+      )
+      window.dispatchEvent(
+        new CustomEvent('auth:session-mismatch', {
+          detail: {
+            expectedUserId: normalizedUserId,
+            foundUserId: response.userId,
+          },
+        }),
+      )
+      throw new ApiError(
+        'Phát hiện phiên đăng nhập không trùng khớp trên trình duyệt. Vui lòng đăng nhập lại.',
+        401,
+      )
+    }
+
+    chatApi.saveLocalConversation(response, normalizedUserId)
+    return response
+  },
+
+  /**
+   * Tách / Rẽ nhánh cuộc hội thoại mới từ hội thoại hiện tại (POST /api/conversations/{id}/fork)
+   */
+  async forkConversation(
+    id: string,
+    data?: ForkConversationRequest,
+    userId?: string | null,
+  ): Promise<Conversation> {
+    const raw = await apiClient.post<Conversation>(
+      API_ENDPOINTS.conversations.fork(id),
+      data ?? {},
+    )
+    const response = normalizeConversation(raw)
+    const normalizedUserId = userId ? String(userId).toLowerCase() : null
+
+    // SECURITY CHECK: Xác thực quyền sở hữu cuộc trò chuyện vừa tạo
+    if (
+      normalizedUserId &&
+      response.userId &&
+      response.userId.toLowerCase() !== normalizedUserId
+    ) {
+      console.error(
+        `[SECURITY] Session mismatch on forkConversation! Expected "${normalizedUserId}" but created under "${response.userId}".`,
+      )
+      window.dispatchEvent(
+        new CustomEvent('auth:session-mismatch', {
+          detail: {
+            expectedUserId: normalizedUserId,
+            foundUserId: response.userId,
+          },
+        }),
+      )
+      throw new ApiError(
+        'Phát hiện phiên đăng nhập không trùng khớp trên trình duyệt. Vui lòng đăng nhập lại.',
+        401,
+      )
+    }
+
+    chatApi.saveLocalConversation(response, normalizedUserId)
+    return response
+  },
+
+  /**
+   * Lấy danh sách cuộc hội thoại từ máy chủ (có kiểm tra quyền sở hữu và fallback về LocalStorage của đúng user)
+>>>>>>> Stashed changes
    */
   async getConversations(userId?: string | null): Promise<Conversation[]> {
     try {
@@ -286,17 +427,31 @@ export const chatApi = {
   async askQuestion(
     conversationId: string,
     content: string,
+    parentMessageId?: string | null,
   ): Promise<AskQuestionResponse> {
+    const payload: { role: string; content: string; parentMessageId?: string | null } = {
+      content,
+      role: 'user',
+    }
+    if (parentMessageId) {
+      payload.parentMessageId = parentMessageId
+    }
+
     const response = await apiClient.post<any>(
       API_ENDPOINTS.conversations.messages(conversationId),
-      { content, role: 'user' },
+      payload,
     )
 
     // TH1: Backend trả về format { userMessage, assistantMessage } theo tài liệu API
     if (response && (response.userMessage || response.assistantMessage)) {
       return {
         userMessage: normalizeMessage(
-          response.userMessage || { content, role: 'user', conversationId },
+          response.userMessage || {
+            content,
+            role: 'user',
+            conversationId,
+            parentMessageId,
+          },
         ),
         assistantMessage: normalizeMessage(
           response.assistantMessage || {
@@ -321,6 +476,7 @@ export const chatApi = {
             role: 'assistant',
             content: assistantReply.content,
             citations: assistantReply.citations,
+            parentMessageId: userMessage.id || null,
           },
         )
         assistantMessage = normalizeMessage(savedAssistant)
@@ -328,6 +484,7 @@ export const chatApi = {
         assistantMessage = {
           id: `asst-${Date.now()}`,
           conversationId,
+          parentMessageId: userMessage.id || null,
           role: 'assistant',
           content: assistantReply.content,
           citations: assistantReply.citations,
@@ -342,10 +499,12 @@ export const chatApi = {
     }
 
     // TH3: Fallback nếu không có phản hồi
+    const fallbackUserId = `user-${Date.now()}`
     return {
       userMessage: {
-        id: `user-${Date.now()}`,
+        id: fallbackUserId,
         conversationId,
+        parentMessageId: parentMessageId ?? null,
         role: 'user',
         content,
         createdAt: new Date().toISOString(),
@@ -353,6 +512,7 @@ export const chatApi = {
       assistantMessage: {
         id: `asst-${Date.now()}`,
         conversationId,
+        parentMessageId: fallbackUserId,
         role: 'assistant',
         content: 'Yêu cầu của bạn đã được ghi nhận vào hệ thống.',
         createdAt: new Date().toISOString(),
@@ -361,7 +521,140 @@ export const chatApi = {
   },
 
   /**
+<<<<<<< Updated upstream
    * Lấy danh sách cuộc hội thoại lưu trữ trong LocalStorage theo userId
+=======
+   * Cập nhật nội dung tin nhắn (PUT /api/conversations/{conversationId}/messages/{messageId})
+   */
+  async updateMessage(
+    conversationId: string,
+    messageId: string,
+    contentOrData: string | UpdateMessageRequest,
+    citations?: CitationItem[] | null,
+  ): Promise<ConversationMessage> {
+    const content =
+      typeof contentOrData === 'string' ? contentOrData : contentOrData.content
+    const resolvedCitations =
+      typeof contentOrData === 'object' && contentOrData.citations !== undefined
+        ? contentOrData.citations
+        : citations
+
+    const raw = await apiClient.put<unknown>(
+      API_ENDPOINTS.conversations.messageDetail(conversationId, messageId),
+      {
+        content,
+        citations: resolvedCitations ?? null,
+      },
+    )
+    return normalizeMessage(raw)
+  },
+
+  /**
+   * Xóa tin nhắn khỏi cuộc hội thoại (DELETE /api/conversations/{conversationId}/messages/{messageId})
+   */
+  async deleteMessage(conversationId: string, messageId: string): Promise<void> {
+    await apiClient.delete(
+      API_ENDPOINTS.conversations.messageDetail(conversationId, messageId),
+    )
+  },
+
+  /**
+   * Lấy danh sách tài liệu đính kèm của một cuộc hội thoại
+   */
+  async getAttachments(
+    conversationId: string,
+    userId?: string | null,
+  ): Promise<ConversationAttachment[]> {
+    const normalizedUserId = userId ? String(userId).toLowerCase() : null
+    const response = await apiClient.get<ConversationAttachment[]>(
+      API_ENDPOINTS.conversations.attachments(conversationId),
+    )
+    if (!Array.isArray(response)) return []
+    const list = response.map(normalizeAttachment).filter((item) => Boolean(item.id))
+
+    // SECURITY CHECK: Xác thực tài liệu trả về phải thuộc về user đang đăng nhập
+    if (normalizedUserId && list.length > 0) {
+      const foreign = list.filter(
+        (a) => a.userId && a.userId.toLowerCase() !== normalizedUserId,
+      )
+      if (foreign.length > 0) {
+        console.error(
+          `[SECURITY] Session mismatch on attachments! Expected "${normalizedUserId}" but found "${foreign[0]?.userId}".`,
+        )
+        window.dispatchEvent(
+          new CustomEvent('auth:session-mismatch', {
+            detail: {
+              expectedUserId: normalizedUserId,
+              foundUserId: foreign[0]?.userId,
+            },
+          }),
+        )
+        throw new ApiError(
+          'Phát hiện phiên đăng nhập không trùng khớp trên trình duyệt. Vui lòng đăng nhập lại.',
+          401,
+        )
+      }
+    }
+
+    return list
+  },
+
+  /**
+   * Lấy thông tin chi tiết một tài liệu đính kèm
+   */
+  async getAttachment(
+    conversationId: string,
+    attachmentId: string,
+  ): Promise<ConversationAttachment> {
+    const response = await apiClient.get<ConversationAttachment>(
+      API_ENDPOINTS.conversations.attachmentDetail(conversationId, attachmentId),
+    )
+    return normalizeAttachment(response)
+  },
+
+  /**
+   * Tải một tài liệu đính kèm lên cuộc hội thoại (multipart/form-data)
+   */
+  async uploadAttachment(
+    conversationId: string,
+    file: File,
+    onUploadProgress?: (percent: number) => void,
+  ): Promise<ConversationAttachment> {
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const response = await apiClient.postForm<ConversationAttachment>(
+      API_ENDPOINTS.conversations.attachments(conversationId),
+      formData,
+      onUploadProgress ? { onUploadProgress } : undefined,
+    )
+    return normalizeAttachment(response)
+  },
+
+  /**
+   * Xóa một tài liệu đính kèm khỏi cuộc hội thoại
+   */
+  async deleteAttachment(conversationId: string, attachmentId: string): Promise<void> {
+    await apiClient.delete(
+      API_ENDPOINTS.conversations.attachmentDetail(conversationId, attachmentId),
+    )
+  },
+
+  /**
+   * Tải xuống nội dung nhị phân của tài liệu đính kèm
+   */
+  async downloadAttachment(
+    conversationId: string,
+    attachmentId: string,
+  ): Promise<BlobResponse> {
+    return apiClient.getBlob(
+      API_ENDPOINTS.conversations.attachmentDownload(conversationId, attachmentId),
+    )
+  },
+
+  /**
+   * Lấy danh sách cuộc hội thoại lưu trữ trong LocalStorage theo userId (chỉ trả về hội thoại thuộc đúng user)
+>>>>>>> Stashed changes
    */
   getLocalConversations(userId?: string | null): Conversation[] {
     try {
@@ -405,8 +698,11 @@ export const chatApi = {
     chatApi.deleteLocalConversation(id, userId)
     try {
       await apiClient.delete(API_ENDPOINTS.conversations.detail(id))
-    } catch {
-      // Server error fallback
+    } catch (err) {
+      if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+        throw err
+      }
+      // Server offline / network fallback
     }
   },
 
@@ -415,6 +711,7 @@ export const chatApi = {
    */
   deleteLocalConversation(id: string, userId?: string | null): void {
     try {
+      clearStoredMessageBranches(id)
       const key = getConversationsStorageKey(userId)
       const list = chatApi.getLocalConversations(userId).filter((c) => c.id !== id)
       localStorage.setItem(key, JSON.stringify(list))

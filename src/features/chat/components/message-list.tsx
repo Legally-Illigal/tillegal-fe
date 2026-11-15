@@ -11,6 +11,9 @@ export interface MessageListProps {
   isLoading: boolean
   onSelectCitation?: (citation: CitationItem) => void
   onSelectScenario?: (query: string) => void
+  onEditMessage?: (messageId: string, newContent: string) => Promise<void>
+  onEditInPlace?: (messageId: string, newContent: string) => Promise<void>
+  onSwitchBranch?: (messageId: string, branchIndex: number) => void
   userInitial?: string
 }
 
@@ -39,6 +42,9 @@ export function MessageList({
   isLoading,
   onSelectCitation,
   onSelectScenario,
+  onEditMessage,
+  onEditInPlace,
+  onSwitchBranch,
   userInitial,
 }: MessageListProps) {
   const bottomRef = React.useRef<HTMLDivElement>(null)
@@ -111,6 +117,9 @@ export function MessageList({
           key={message.id}
           message={message}
           onSelectCitation={onSelectCitation}
+          onEditMessage={onEditMessage}
+          onEditInPlace={onEditInPlace}
+          onSwitchBranch={onSwitchBranch}
           userInitial={userInitial}
         />
       ))}

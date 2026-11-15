@@ -1,12 +1,35 @@
+<<<<<<< Updated upstream
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+=======
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+>>>>>>> Stashed changes
 import type { CitationItem } from '@/features/citation'
 import { apiClient } from '@/lib/api/client'
 import { chatApi, normalizeMessage } from './api/chat-api'
 import { MessageContent } from './components/message-content'
+import { MessageItem } from './components/message-item'
 import { MessageList } from './components/message-list'
 import { deduplicateMessages } from './hooks/use-chat'
+<<<<<<< Updated upstream
 import type { Conversation, ConversationMessage } from './types/chat.types'
+=======
+import type {
+  Conversation,
+  ConversationAttachment,
+  ConversationMessage,
+} from './types/chat.types'
+import {
+  formatAttachmentErrorMessage,
+  formatFileSize,
+  getAttachmentStatusMeta,
+  MAX_ATTACHMENT_SIZE_BYTES,
+  validateAttachmentFile,
+} from './utils/attachment-helpers'
+import { buildMessageThread } from './utils/message-tree'
+>>>>>>> Stashed changes
 
 describe('Chat Feature', () => {
   describe('chatApi local storage management', () => {
@@ -65,6 +88,168 @@ describe('Chat Feature', () => {
       expect(normalized.content).toBe('Nội dung trả lời')
       expect(normalized.citations).toHaveLength(1)
       expect(normalized.citations?.[0]?.documentTitle).toBe('Luật Đất đai')
+    })
+
+    it('normalizes parentMessageId from parentMessageId and parent_message_id', () => {
+      const msg1 = normalizeMessage({
+        id: 'msg-1',
+        parentMessageId: 'parent-uuid-1',
+      })
+      expect(msg1.parentMessageId).toBe('parent-uuid-1')
+
+      const msg2 = normalizeMessage({
+        id: 'msg-2',
+        parent_message_id: 'parent-uuid-2',
+      })
+      expect(msg2.parentMessageId).toBe('parent-uuid-2')
+
+      const msg3 = normalizeMessage({
+        id: 'msg-3',
+        parentMessageId: null,
+      })
+      expect(msg3.parentMessageId).toBeNull()
+    })
+
+    it('reconstructs active thread and branches using buildMessageThread based on parentMessageId', () => {
+      const allMsgs: ConversationMessage[] = [
+        {
+          id: 'u1',
+          conversationId: 'c1',
+          parentMessageId: null,
+          role: 'user',
+          content: 'Câu hỏi 1',
+          createdAt: '2026-11-15T01:00:00Z',
+        },
+        {
+          id: 'a1',
+          conversationId: 'c1',
+          parentMessageId: 'u1',
+          role: 'assistant',
+          content: 'Trả lời 1',
+          createdAt: '2026-11-15T01:01:00Z',
+        },
+        // Branch 1
+        {
+          id: 'u2-b1',
+          conversationId: 'c1',
+          parentMessageId: 'a1',
+          role: 'user',
+          content: 'Nhánh 1: Hỏi về thừa kế',
+          createdAt: '2026-11-15T01:02:00Z',
+        },
+        {
+          id: 'a2-b1',
+          conversationId: 'c1',
+          parentMessageId: 'u2-b1',
+          role: 'assistant',
+          content: 'Trả lời nhánh 1',
+          createdAt: '2026-11-15T01:03:00Z',
+        },
+        // Branch 2
+        {
+          id: 'u2-b2',
+          conversationId: 'c1',
+          parentMessageId: 'a1',
+          role: 'user',
+          content: 'Nhánh 2: Hỏi về đất đai',
+          createdAt: '2026-11-15T01:04:00Z',
+        },
+        {
+          id: 'a2-b2',
+          conversationId: 'c1',
+          parentMessageId: 'u2-b2',
+          role: 'assistant',
+          content: 'Trả lời nhánh 2',
+          createdAt: '2026-11-15T01:05:00Z',
+        },
+      ]
+
+      // Default should pick the latest branch (index 1: Nhánh 2)
+      const threadDefault = buildMessageThread(allMsgs, {})
+      expect(threadDefault).toHaveLength(4)
+      expect(threadDefault[2]?.id).toBe('u2-b2')
+      expect(threadDefault[2]?.branches).toHaveLength(2)
+      expect(threadDefault[2]?.activeBranchIndex).toBe(1)
+      expect(threadDefault[3]?.id).toBe('a2-b2')
+
+      // Selecting branch 0 (Nhánh 1)
+      const threadBranch0 = buildMessageThread(allMsgs, { 'u2-b1': 0 })
+      expect(threadBranch0).toHaveLength(4)
+      expect(threadBranch0[2]?.id).toBe('u2-b1')
+      expect(threadBranch0[2]?.branches).toHaveLength(2)
+      expect(threadBranch0[2]?.activeBranchIndex).toBe(0)
+      expect(threadBranch0[3]?.id).toBe('a2-b1')
+    })
+
+    it('switches between branches seamlessly across full message trees from backend', () => {
+      const allMsgs: ConversationMessage[] = [
+        {
+          id: 'u1',
+          conversationId: 'c1',
+          parentMessageId: null,
+          role: 'user',
+          content: 'Câu hỏi 1',
+          createdAt: '2026-11-15T01:00:00Z',
+        },
+        {
+          id: 'a1',
+          conversationId: 'c1',
+          parentMessageId: 'u1',
+          role: 'assistant',
+          content: 'Trả lời 1',
+          createdAt: '2026-11-15T01:01:00Z',
+        },
+        // Branch 1 of Q2
+        {
+          id: 'u2-b1',
+          conversationId: 'c1',
+          parentMessageId: 'a1',
+          role: 'user',
+          content: 'Câu hỏi 2 nhánh 1',
+          createdAt: '2026-11-15T01:02:00Z',
+        },
+        {
+          id: 'a2-b1',
+          conversationId: 'c1',
+          parentMessageId: 'u2-b1',
+          role: 'assistant',
+          content: 'Trả lời 2 nhánh 1',
+          createdAt: '2026-11-15T01:03:00Z',
+        },
+        // Branch 2 of Q2
+        {
+          id: 'u2-b2',
+          conversationId: 'c1',
+          parentMessageId: 'a1',
+          role: 'user',
+          content: 'Câu hỏi 2 nhánh 2',
+          createdAt: '2026-11-15T01:04:00Z',
+        },
+        {
+          id: 'a2-b2',
+          conversationId: 'c1',
+          parentMessageId: 'u2-b2',
+          role: 'assistant',
+          content: 'Trả lời 2 nhánh 2',
+          createdAt: '2026-11-15T01:05:00Z',
+        },
+      ]
+
+      // By default without local storage, picks latest branch (index 1)
+      const threadLatest = buildMessageThread(allMsgs)
+      expect(threadLatest).toHaveLength(4)
+      expect(threadLatest[2]?.id).toBe('u2-b2')
+      expect(threadLatest[2]?.branches).toHaveLength(2)
+      expect(threadLatest[2]?.activeBranchIndex).toBe(1)
+      expect(threadLatest[3]?.id).toBe('a2-b2')
+
+      // With active branch set to branch 0
+      const threadBranch0 = buildMessageThread(allMsgs, { 'u2-b1': 0 })
+      expect(threadBranch0).toHaveLength(4)
+      expect(threadBranch0[2]?.id).toBe('u2-b1')
+      expect(threadBranch0[2]?.branches).toHaveLength(2)
+      expect(threadBranch0[2]?.activeBranchIndex).toBe(0)
+      expect(threadBranch0[3]?.id).toBe('a2-b1')
     })
 
     it('handles CursorPagedMessagesApiResponse object from backend correctly', async () => {
@@ -193,4 +378,534 @@ describe('Chat Feature', () => {
       expect(deduplicated[1]?.role).toBe('assistant')
     })
   })
+<<<<<<< Updated upstream
+=======
+
+  describe('Attachment helpers & API', () => {
+    afterEach(() => {
+      vi.restoreAllMocks()
+    })
+
+    it('validates file extension, empty size, and max size', () => {
+      const validFile = new File(['abc'], 'hop-dong.pdf', { type: 'application/pdf' })
+      expect(validateAttachmentFile(validFile)).toEqual({ valid: true })
+
+      const emptyFile = new File([], 'empty.pdf', { type: 'application/pdf' })
+      expect(validateAttachmentFile(emptyFile).valid).toBe(false)
+
+      const unsupportedFile = new File(['exe'], 'malware.exe')
+      expect(validateAttachmentFile(unsupportedFile).valid).toBe(false)
+
+      const hugeFile = {
+        name: 'huge.pdf',
+        size: MAX_ATTACHMENT_SIZE_BYTES + 1,
+      } as File
+      expect(validateAttachmentFile(hugeFile).valid).toBe(false)
+    })
+
+    it('formats file size and maps processing status metadata', () => {
+      expect(formatFileSize(512)).toBe('512 B')
+      expect(formatFileSize(2048)).toBe('2.0 KB')
+      expect(formatFileSize(3 * 1024 * 1024)).toBe('3.0 MB')
+
+      expect(getAttachmentStatusMeta('Pending').isProcessing).toBe(true)
+      expect(getAttachmentStatusMeta('Processing').isProcessing).toBe(true)
+      expect(getAttachmentStatusMeta('Completed').label).toBe('Sẵn sàng')
+      expect(getAttachmentStatusMeta('Failed').tone).toBe('failed')
+    })
+
+    it('formats attachment upload error messages for duplicate, signature, and limit errors', () => {
+      const dupError = new ApiError('Duplicate', 400, {
+        code: 'DUPLICATE_FILE',
+        detail: 'This file has already been uploaded to this conversation.',
+      })
+      expect(formatAttachmentErrorMessage(dupError, 'doc.pdf')).toContain(
+        'đã được tải lên',
+      )
+
+      const sigError = new ApiError('Invalid', 400, {
+        code: 'INVALID_FILE_SIGNATURE',
+        detail:
+          'File signature does not match the file extension or file content is invalid.',
+      })
+      expect(formatAttachmentErrorMessage(sigError, 'bad.pdf')).toContain(
+        'không hợp lệ hoặc không khớp',
+      )
+
+      const limitError = new ApiError('Limit', 400, {
+        code: 'ATTACHMENT_LIMIT_EXCEEDED',
+        detail: 'A conversation can have at most 5 attachments.',
+      })
+      expect(formatAttachmentErrorMessage(limitError)).toContain(
+        'đạt giới hạn tối đa 5 tài liệu',
+      )
+
+      const sizeError = new ApiError('Too large', 413)
+      expect(formatAttachmentErrorMessage(sizeError, 'large.pdf')).toContain(
+        'vượt quá dung lượng tối đa 20 MB',
+      )
+    })
+
+    it('normalizes attachment payload and calls attachment endpoints', async () => {
+      const normalized = normalizeAttachment({
+        id: 'att-1',
+        conversation_id: 'conv-1',
+        user_id: 'user-1',
+        file_name: 'nghi-dinh.pdf',
+        file_size: 4096,
+        content_type: 'application/pdf',
+        processing_status: 'Completed',
+        token_count: 1500,
+        file_hash: 'sha256-xyz',
+        created_at: '2026-11-12T10:00:00Z',
+        updated_at: null,
+      })
+
+      expect(normalized.id).toBe('att-1')
+      expect(normalized.fileName).toBe('nghi-dinh.pdf')
+      expect(normalized.tokenCount).toBe(1500)
+
+      const postFormSpy = vi
+        .spyOn(apiClient, 'postForm')
+        .mockResolvedValueOnce(normalized)
+      const getSpy = vi.spyOn(apiClient, 'get').mockResolvedValueOnce([normalized])
+      const deleteSpy = vi.spyOn(apiClient, 'delete').mockResolvedValueOnce(undefined)
+
+      const file = new File(['content'], 'nghi-dinh.pdf', { type: 'application/pdf' })
+      const uploaded = await chatApi.uploadAttachment('conv-1', file)
+      expect(uploaded.id).toBe('att-1')
+      expect(postFormSpy).toHaveBeenCalledWith(
+        '/conversations/conv-1/attachments',
+        expect.any(FormData),
+        undefined,
+      )
+
+      const list = await chatApi.getAttachments('conv-1')
+      expect(list).toHaveLength(1)
+      expect(getSpy).toHaveBeenCalledWith('/conversations/conv-1/attachments')
+
+      await chatApi.deleteAttachment('conv-1', 'att-1')
+      expect(deleteSpy).toHaveBeenCalledWith('/conversations/conv-1/attachments/att-1')
+    })
+  })
+
+  describe('AttachmentDrawer & ChatInput attachments UI', () => {
+    const sampleAttachments: ConversationAttachment[] = [
+      {
+        id: 'att-1',
+        conversationId: 'conv-1',
+        userId: 'user-1',
+        fileName: 'Hop-dong-lao-dong.pdf',
+        fileSize: 204800,
+        contentType: 'application/pdf',
+        processingStatus: 'Completed',
+        tokenCount: 1240,
+        fileHash: 'abc123def456',
+        createdAt: '2026-11-12T10:00:00Z',
+        updatedAt: '2026-11-12T10:01:00Z',
+      },
+      {
+        id: 'att-2',
+        conversationId: 'conv-1',
+        userId: 'user-1',
+        fileName: 'Phu-luc-01.docx',
+        fileSize: 51200,
+        contentType:
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        processingStatus: 'Processing',
+        tokenCount: null,
+        fileHash: null,
+        createdAt: '2026-11-12T10:05:00Z',
+        updatedAt: null,
+      },
+    ]
+
+    it('renders attachments, filters by search, expands system metadata, and triggers callbacks', () => {
+      const onUploadFiles = vi.fn()
+      const onDelete = vi.fn()
+      const onDownload = vi.fn()
+
+      render(
+        <AttachmentDrawer
+          open
+          onOpenChange={vi.fn()}
+          attachments={sampleAttachments}
+          isLoading={false}
+          uploadTasks={[
+            {
+              tempId: 'tmp-1',
+              fileName: 'Bien-ban.pdf',
+              fileSize: 10240,
+              progress: 45,
+              status: 'uploading',
+            },
+          ]}
+          onUploadFiles={onUploadFiles}
+          onDelete={onDelete}
+          onDownload={onDownload}
+        />,
+      )
+
+      expect(screen.getByText('Hop-dong-lao-dong.pdf')).toBeInTheDocument()
+      expect(screen.getByText('Phu-luc-01.docx')).toBeInTheDocument()
+      expect(screen.getByText('Bien-ban.pdf')).toBeInTheDocument()
+
+      // Expand metadata of first attachment
+      const metadataButtons = screen.getAllByRole('button', {
+        name: /Metadata hệ thống/i,
+      })
+      fireEvent.click(metadataButtons[0]!)
+      expect(screen.getByText('abc123def456')).toBeInTheDocument()
+
+      // Search filters list
+      const searchInput = screen.getByLabelText('Tìm kiếm tài liệu')
+      fireEvent.change(searchInput, { target: { value: 'Hop-dong' } })
+      expect(screen.getByText('Hop-dong-lao-dong.pdf')).toBeInTheDocument()
+      expect(screen.queryByText('Phu-luc-01.docx')).not.toBeInTheDocument()
+
+      // Download & delete actions
+      fireEvent.click(screen.getByRole('button', { name: /Tải về/i }))
+      expect(onDownload).toHaveBeenCalledWith(sampleAttachments[0])
+
+      fireEvent.click(
+        screen.getByRole('button', { name: /Xóa tài liệu Hop-dong-lao-dong\.pdf/i }),
+      )
+      expect(onDelete).toHaveBeenCalledWith('att-1')
+
+      // Upload via file input
+      const fileInput = screen.getByLabelText('Chọn tệp tài liệu tải lên')
+      const testFile = new File(['hello'], 'new-doc.pdf', { type: 'application/pdf' })
+      fireEvent.change(fileInput, { target: { files: [testFile] } })
+      expect(onUploadFiles).toHaveBeenCalledTimes(1)
+    })
+
+    it('renders attachment chips and attach button in ChatInput', () => {
+      const onSend = vi.fn()
+      const onUploadFiles = vi.fn()
+      const onDeleteAttachment = vi.fn()
+      const onOpenAttachments = vi.fn()
+
+      render(
+        <ChatInput
+          onSend={onSend}
+          attachments={[sampleAttachments[0]!]}
+          onUploadFiles={onUploadFiles}
+          onDeleteAttachment={onDeleteAttachment}
+          onOpenAttachments={onOpenAttachments}
+        />,
+      )
+
+      expect(screen.getByText('Hop-dong-lao-dong.pdf')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /Đính kèm/i })).toBeInTheDocument()
+
+      fireEvent.click(
+        screen.getByRole('button', { name: /Gỡ tài liệu Hop-dong-lao-dong\.pdf/i }),
+      )
+      expect(onDeleteAttachment).toHaveBeenCalledWith('att-1')
+
+      const fileInput = screen.getByLabelText('Đính kèm tài liệu')
+      const testFile = new File(['abc'], 'van-ban.txt', { type: 'text/plain' })
+      fireEvent.change(fileInput, { target: { files: [testFile] } })
+      expect(onUploadFiles).toHaveBeenCalledTimes(1)
+    })
+
+    it('renders all 5 attachments inside scrollable drawer and clears failed upload tasks', () => {
+      const fiveAttachments: ConversationAttachment[] = Array.from(
+        { length: 5 },
+        (_, i) => ({
+          id: `att-${i + 1}`,
+          conversationId: 'conv-1',
+          userId: 'user-1',
+          fileName: `Tai-lieu-${i + 1}.pdf`,
+          fileSize: 1024 * (i + 1),
+          contentType: 'application/pdf',
+          processingStatus: 'Completed',
+          tokenCount: 100 * (i + 1),
+          fileHash: `hash-${i + 1}`,
+          createdAt: '2026-11-12T10:00:00Z',
+          updatedAt: null,
+        }),
+      )
+      const onClearFailedUploadTasks = vi.fn()
+
+      render(
+        <AttachmentDrawer
+          open
+          onOpenChange={vi.fn()}
+          attachments={fiveAttachments}
+          isLoading={false}
+          uploadTasks={[
+            {
+              tempId: 'err-1',
+              fileName: 'Loi.png',
+              fileSize: 500,
+              progress: 0,
+              status: 'error',
+              error: 'A conversation can have at most 5 attachments.',
+            },
+          ]}
+          onUploadFiles={vi.fn()}
+          onDelete={vi.fn()}
+          onDownload={vi.fn()}
+          onClearFailedUploadTasks={onClearFailedUploadTasks}
+        />,
+      )
+
+      for (let i = 1; i <= 5; i += 1) {
+        expect(screen.getByText(`Tai-lieu-${i}.pdf`)).toBeInTheDocument()
+      }
+
+      const clearBtn = screen.getByRole('button', { name: /Xóa thông báo lỗi/i })
+      fireEvent.click(clearBtn)
+      expect(onClearFailedUploadTasks).toHaveBeenCalledTimes(1)
+    })
+
+    it('renders dedicated Quản lý tài liệu button below Cuộc trò chuyện mới in ChatSidebar', () => {
+      const onOpenAttachments = vi.fn()
+
+      render(
+        <MemoryRouter>
+          <ChatSidebar
+            conversations={[]}
+            activeId={null}
+            onSelect={vi.fn()}
+            onNewChat={vi.fn()}
+            onDelete={vi.fn()}
+            onOpenAttachments={onOpenAttachments}
+            attachmentsCount={5}
+          />
+        </MemoryRouter>,
+      )
+
+      const newChatBtn = screen.getByRole('button', { name: /Cuộc trò chuyện mới/i })
+      const manageDocsBtn = screen.getByRole('button', { name: /Quản lý tài liệu/i })
+      expect(newChatBtn).toBeInTheDocument()
+      expect(manageDocsBtn).toBeInTheDocument()
+      expect(manageDocsBtn).toHaveTextContent('5')
+
+      fireEvent.click(manageDocsBtn)
+      expect(onOpenAttachments).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  describe('Conversation & Message API endpoints (PUT / DELETE)', () => {
+    afterEach(() => {
+      vi.restoreAllMocks()
+    })
+
+    it('updates conversation title via PUT and updates local storage', async () => {
+      const mockPut = vi.spyOn(apiClient, 'put').mockResolvedValueOnce({
+        id: 'conv-1',
+        userId: 'user-1',
+        title: 'Tiêu đề mới cập nhật',
+        createdAt: '2026-11-12T10:00:00Z',
+        updatedAt: '2026-11-12T10:10:00Z',
+      })
+
+      const updated = await chatApi.updateConversation(
+        'conv-1',
+        'Tiêu đề mới cập nhật',
+        'user-1',
+      )
+
+      expect(mockPut).toHaveBeenCalledWith('/conversations/conv-1', {
+        title: 'Tiêu đề mới cập nhật',
+      })
+      expect(updated.title).toBe('Tiêu đề mới cập nhật')
+
+      const local = chatApi.getLocalConversations('user-1')
+      expect(local.find((c) => c.id === 'conv-1')?.title).toBe('Tiêu đề mới cập nhật')
+    })
+
+    it('updates message content via PUT', async () => {
+      const mockPut = vi.spyOn(apiClient, 'put').mockResolvedValueOnce({
+        id: 'msg-1',
+        conversationId: 'conv-1',
+        role: 'user',
+        content: 'Nội dung câu hỏi đã sửa',
+        citations: null,
+        createdAt: '2026-11-12T10:00:00Z',
+        updatedAt: '2026-11-12T10:05:00Z',
+      })
+
+      const res = await chatApi.updateMessage(
+        'conv-1',
+        'msg-1',
+        'Nội dung câu hỏi đã sửa',
+      )
+
+      expect(mockPut).toHaveBeenCalledWith('/conversations/conv-1/messages/msg-1', {
+        content: 'Nội dung câu hỏi đã sửa',
+        citations: null,
+      })
+      expect(res.content).toBe('Nội dung câu hỏi đã sửa')
+      expect(res.updatedAt).toBe('2026-11-12T10:05:00Z')
+    })
+
+    it('deletes message via DELETE', async () => {
+      const mockDelete = vi.spyOn(apiClient, 'delete').mockResolvedValueOnce(undefined)
+
+      await chatApi.deleteMessage('conv-1', 'msg-1')
+
+      expect(mockDelete).toHaveBeenCalledWith('/conversations/conv-1/messages/msg-1')
+    })
+
+    it('forks conversation via POST /conversations/{id}/fork and saves to local storage', async () => {
+      const mockPost = vi.spyOn(apiClient, 'post').mockResolvedValueOnce({
+        id: 'conv-forked',
+        userId: 'user-1',
+        title: 'Nhánh mới',
+        createdAt: '2026-11-12T10:15:00Z',
+        updatedAt: null,
+      })
+
+      const forked = await chatApi.forkConversation(
+        'conv-1',
+        {
+          fromMessageId: 'msg-1',
+          newPrompt: 'Câu hỏi mới cho nhánh',
+        },
+        'user-1',
+      )
+
+      expect(mockPost).toHaveBeenCalledWith('/conversations/conv-1/fork', {
+        fromMessageId: 'msg-1',
+        newPrompt: 'Câu hỏi mới cho nhánh',
+      })
+      expect(forked.id).toBe('conv-forked')
+      expect(forked.title).toBe('Nhánh mới')
+
+      const local = chatApi.getLocalConversations('user-1')
+      expect(local.find((c) => c.id === 'conv-forked')).toBeDefined()
+    })
+  })
+
+  describe('ChatSidebar Rename & Delete Dialog UI', () => {
+    it('supports inline title renaming and confirms deletion via Dialog', async () => {
+      const onRename = vi.fn()
+      const onDelete = vi.fn()
+      const conversations: Conversation[] = [
+        { id: 'c1', title: 'Hội thoại ban đầu', createdAt: '2026-11-12T10:00:00Z' },
+      ]
+
+      render(
+        <MemoryRouter>
+          <ChatSidebar
+            conversations={conversations}
+            activeId="c1"
+            onSelect={vi.fn()}
+            onNewChat={vi.fn()}
+            onDelete={onDelete}
+            onRename={onRename}
+          />
+        </MemoryRouter>,
+      )
+
+      // Click rename button
+      const renameBtn = screen.getByRole('button', { name: /Sửa tiêu đề/i })
+      fireEvent.click(renameBtn)
+
+      // Input appears
+      const input = screen.getByPlaceholderText('Tiêu đề cuộc trò chuyện...')
+      expect(input).toHaveValue('Hội thoại ban đầu')
+      fireEvent.change(input, { target: { value: 'Hội thoại đổi tên' } })
+
+      // Save via Check button
+      const saveBtn = screen.getByRole('button', { name: /Lưu tiêu đề/i })
+      fireEvent.click(saveBtn)
+      expect(onRename).toHaveBeenCalledWith('c1', 'Hội thoại đổi tên')
+
+      // Click delete button -> Dialog opens
+      const deleteBtn = screen.getByRole('button', { name: /Xóa hội thoại/i })
+      fireEvent.click(deleteBtn)
+      expect(
+        screen.getByText(/Bạn có chắc chắn muốn xóa cuộc trò chuyện/i),
+      ).toBeInTheDocument()
+
+      // Confirm deletion
+      const confirmDeleteBtn = screen.getByRole('button', { name: /Xác nhận xóa/i })
+      fireEvent.click(confirmDeleteBtn)
+      expect(onDelete).toHaveBeenCalledWith('c1')
+    })
+  })
+
+  describe('MessageItem Editing & Branching Navigation UI', () => {
+    it('renders edit button on user message, edits content, and navigates between branches', async () => {
+      const onEditMessage = vi.fn().mockResolvedValue(undefined)
+      const onEditInPlace = vi.fn().mockResolvedValue(undefined)
+      const onSwitchBranch = vi.fn()
+
+      const userMessage: ConversationMessage = {
+        id: 'm1',
+        conversationId: 'c1',
+        role: 'user',
+        content: 'Câu hỏi ban đầu',
+        createdAt: '2026-11-12T10:00:00Z',
+        branches: [
+          { id: 'b0', content: 'Câu hỏi ban đầu' },
+          { id: 'b1', content: 'Câu hỏi nhánh 2' },
+        ],
+        activeBranchIndex: 1,
+      }
+
+      render(
+        <MessageItem
+          message={userMessage}
+          onEditMessage={onEditMessage}
+          onEditInPlace={onEditInPlace}
+          onSwitchBranch={onSwitchBranch}
+        />,
+      )
+
+      // Shows branch indicator 2/2
+      expect(screen.getByText('2/2')).toBeInTheDocument()
+
+      // Confirm there is no delete message button
+      expect(
+        screen.queryByRole('button', { name: /Xóa tin nhắn/i }),
+      ).not.toBeInTheDocument()
+
+      // Click previous branch
+      const prevBranchBtn = screen.getByRole('button', { name: /Nhánh trước/i })
+      fireEvent.click(prevBranchBtn)
+      expect(onSwitchBranch).toHaveBeenCalledWith('m1', 0)
+
+      // Click edit button
+      const editBtn = screen.getByRole('button', { name: /Sửa tin nhắn/i })
+      fireEvent.click(editBtn)
+
+      // Textarea appears
+      const textarea = screen.getByPlaceholderText('Nhập nội dung chỉnh sửa...')
+      expect(textarea).toHaveValue('Câu hỏi ban đầu')
+      fireEvent.change(textarea, { target: { value: 'Câu hỏi sửa chính tả' } })
+
+      // Click Sửa tại chỗ
+      const saveInPlaceBtn = screen.getByRole('button', { name: /Sửa tại chỗ/i })
+      fireEvent.click(saveInPlaceBtn)
+
+      await waitFor(() => {
+        expect(onEditInPlace).toHaveBeenCalledWith('m1', 'Câu hỏi sửa chính tả')
+      })
+      await waitFor(() => {
+        expect(
+          screen.queryByPlaceholderText('Nhập nội dung chỉnh sửa...'),
+        ).not.toBeInTheDocument()
+      })
+
+      // Click edit again to test Tạo nhánh mới
+      const editBtn2 = screen.getByRole('button', { name: /Sửa tin nhắn/i })
+      fireEvent.click(editBtn2)
+
+      const textarea2 = screen.getByPlaceholderText('Nhập nội dung chỉnh sửa...')
+      fireEvent.change(textarea2, { target: { value: 'Câu hỏi nhánh 3 đã sửa' } })
+
+      const saveBranchBtn = screen.getByRole('button', { name: /Tạo nhánh mới/i })
+      fireEvent.click(saveBranchBtn)
+
+      await waitFor(() => {
+        expect(onEditMessage).toHaveBeenCalledWith('m1', 'Câu hỏi nhánh 3 đã sửa')
+      })
+    })
+  })
+>>>>>>> Stashed changes
 })

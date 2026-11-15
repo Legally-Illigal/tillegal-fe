@@ -11,7 +11,18 @@ export const API_ENDPOINTS = {
     list: '/conversations',
     create: '/conversations',
     detail: (id: string) => `/conversations/${id}`,
+    fork: (id: string) => `/conversations/${id}/fork`,
     messages: (id: string) => `/conversations/${id}/messages`,
+<<<<<<< Updated upstream
+=======
+    messageDetail: (conversationId: string, messageId: string) =>
+      `/conversations/${conversationId}/messages/${messageId}`,
+    attachments: (id: string) => `/conversations/${id}/attachments`,
+    attachmentDetail: (id: string, attachmentId: string) =>
+      `/conversations/${id}/attachments/${attachmentId}`,
+    attachmentDownload: (id: string, attachmentId: string) =>
+      `/conversations/${id}/attachments/${attachmentId}/download`,
+>>>>>>> Stashed changes
   },
   citations: {
     verify: '/citations/verify',
