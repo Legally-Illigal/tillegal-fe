@@ -1,21 +1,17 @@
-<<<<<<< Updated upstream
-import { fireEvent, render, screen } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-=======
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
->>>>>>> Stashed changes
 import type { CitationItem } from '@/features/citation'
 import { apiClient } from '@/lib/api/client'
-import { chatApi, normalizeMessage } from './api/chat-api'
+import { ApiError } from '@/lib/api/types'
+import { chatApi, normalizeAttachment, normalizeMessage } from './api/chat-api'
+import { AttachmentDrawer } from './components/attachment-drawer'
+import { ChatInput } from './components/chat-input'
+import { ChatSidebar } from './components/chat-sidebar'
 import { MessageContent } from './components/message-content'
 import { MessageItem } from './components/message-item'
 import { MessageList } from './components/message-list'
 import { deduplicateMessages } from './hooks/use-chat'
-<<<<<<< Updated upstream
-import type { Conversation, ConversationMessage } from './types/chat.types'
-=======
 import type {
   Conversation,
   ConversationAttachment,
@@ -29,7 +25,6 @@ import {
   validateAttachmentFile,
 } from './utils/attachment-helpers'
 import { buildMessageThread } from './utils/message-tree'
->>>>>>> Stashed changes
 
 describe('Chat Feature', () => {
   describe('chatApi local storage management', () => {
@@ -378,8 +373,6 @@ describe('Chat Feature', () => {
       expect(deduplicated[1]?.role).toBe('assistant')
     })
   })
-<<<<<<< Updated upstream
-=======
 
   describe('Attachment helpers & API', () => {
     afterEach(() => {
@@ -907,5 +900,4 @@ describe('Chat Feature', () => {
       })
     })
   })
->>>>>>> Stashed changes
 })

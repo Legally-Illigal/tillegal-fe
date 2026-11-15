@@ -136,8 +136,6 @@ Backend sẽ gửi câu hỏi kèm lịch sử trao đổi đến Python AI Serv
     }
   ]
   ```
-<<<<<<< Updated upstream
-=======
 
 ---
 
@@ -243,4 +241,3 @@ Backend sẽ gửi câu hỏi kèm lịch sử trao đổi đến Python AI Serv
   - Sao chép toàn bộ ngữ cảnh và các tin nhắn từ đầu tới vị trí `fromMessageId` (nếu có).
   - Nếu cung cấp `newPrompt`, thêm câu hỏi mới vào cuộc trò chuyện mới và kích hoạt AI phản hồi.
   - Người dùng có thể thực hiện tách nhánh qua nút "Tách nhánh từ tin nhắn này" trên thanh công cụ tin nhắn, hoặc chọn "Lưu & Rẽ nhánh mới" khi đang chỉnh sửa nội dung tin nhắn.
->>>>>>> Stashed changes
