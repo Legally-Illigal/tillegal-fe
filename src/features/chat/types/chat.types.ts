@@ -2,6 +2,8 @@ import type { CitationItem } from '@/features/citation'
 
 export type MessageRole = 'user' | 'assistant'
 
+export type WorkflowMode = 'single_agent' | 'multi_agent'
+
 export interface MessageBranch {
   id: string
   content: string
@@ -22,6 +24,7 @@ export interface ConversationMessage {
   updatedAt?: string | null
   branches?: MessageBranch[]
   activeBranchIndex?: number
+  workflowMode?: WorkflowMode | null
 }
 
 export interface Conversation {
@@ -62,6 +65,7 @@ export interface CreateConversationResponse {
 export interface AskQuestionRequest {
   content: string
   parentMessageId?: string | null
+  workflowMode?: WorkflowMode | null
 }
 
 export interface AskQuestionResponse {

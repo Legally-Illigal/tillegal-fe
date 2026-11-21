@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { authApi } from '../api/auth-api'
 import { chatApi } from '@/features/chat/api/chat-api'
@@ -297,6 +297,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.location.href = '/'
   }
 
+  const updateUser = (updated: Partial<UserProfile>) => {
+    setUser((prev) => {
+      if (!prev) return null
+      const next = normalizeUserProfile({ ...prev, ...updated })
+      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(next))
+      return next
+    })
+  }
+
+  const refreshUser = async (): Promise<UserProfile | null> => {
+    try {
+      const me = await authApi.getMe({ silent401: true })
+      const serverUser: UserProfile = normalizeUserProfile({
+        id: me.id,
+        fullName: me.fullName,
+        email: me.email || '',
+        phoneNumber: me.phoneNumber,
+        role: me.role,
+      })
+
+      if (!me.isActive) {
+        tokenStorage.clearTokens()
+        localStorage.removeItem(USER_STORAGE_KEY)
+        chatApi.clearLocalConversations()
+        setUser(null)
+        return null
+      }
+
+      setUser(serverUser)
+      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(serverUser))
+      return serverUser
+    } catch {
+      return null
+    }
+  }
+
   const value = {
     user,
     isAuthenticated: Boolean(user),
@@ -307,6 +343,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loginWithGoogle,
     registerWithGoogle,
     logout,
+    updateUser,
+    refreshUser,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

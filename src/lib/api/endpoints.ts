@@ -7,7 +7,11 @@ export const API_ENDPOINTS = {
     registerGoogle: '/auth/register/google',
     loginGoogle: '/auth/login/google',
     logout: '/auth/logout',
-    me: '/auth/me',
+    me: '/users/me',
+  },
+  users: {
+    me: '/users/me',
+    changePassword: '/users/me/password',
   },
   conversations: {
     list: '/conversations',

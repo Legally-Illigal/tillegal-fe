@@ -17,6 +17,7 @@ import {
   getAttachmentStatusMeta,
   validateAttachmentFile,
 } from '../utils/attachment-helpers'
+import { isLawyerUser } from '../utils/workflow-helpers'
 import { buildMessageThread } from '../utils/message-tree'
 
 export interface UseChatReturn {
@@ -32,6 +33,8 @@ export interface UseChatReturn {
   downloadingAttachmentId: string | null
   isLoading: boolean
   error: string | null
+  isLawyer: boolean
+  workflowMode: 'single_agent' | 'multi_agent'
   selectedCitation: CitationItem | null
   isCitationDrawerOpen: boolean
   setIsCitationDrawerOpen: (open: boolean) => void
@@ -100,6 +103,8 @@ export function deduplicateMessages(list: ConversationMessage[]): ConversationMe
 export function useChat(initialConversationId?: string | null): UseChatReturn {
   const { user } = useAuth()
   const userId = user?.id
+  const isLawyer = React.useMemo(() => isLawyerUser(user), [user])
+  const workflowMode = isLawyer ? 'multi_agent' : 'single_agent'
 
   const isSendingRef = React.useRef(false)
   const skipFetchForConvIdRef = React.useRef<string | null>(null)
@@ -512,7 +517,12 @@ export function useChat(initialConversationId?: string | null): UseChatReturn {
         let assistantMsg: ConversationMessage
 
         try {
-          const response = await chatApi.askQuestion(convId, trimmed, parentMessageId)
+          const response = await chatApi.askQuestion(
+            convId,
+            trimmed,
+            parentMessageId,
+            workflowMode,
+          )
           newBranchedUserMsg = response.userMessage
           assistantMsg = response.assistantMessage
         } catch {
@@ -524,16 +534,21 @@ export function useChat(initialConversationId?: string | null): UseChatReturn {
             role: 'user',
             content: trimmed,
             createdAt: new Date().toISOString(),
+            workflowMode,
           }
           const reply = generateAssistantReply(trimmed)
+          const modeNotice = isLawyer
+            ? '[Đa Agent - Chuyên sâu] Hệ thống đã tổng hợp ý kiến từ nhiều chuyên gia pháp lý.\n\n'
+            : ''
           assistantMsg = {
             id: `asst-${Date.now()}`,
             conversationId: convId,
             parentMessageId: fallbackUserId,
             role: 'assistant',
-            content: reply.content,
+            content: `${modeNotice}${reply.content}`,
             citations: reply.citations,
             createdAt: new Date().toISOString(),
+            workflowMode,
           }
         }
 
@@ -726,7 +741,12 @@ export function useChat(initialConversationId?: string | null): UseChatReturn {
         }
 
         // Gửi câu hỏi đến backend (kèm parentMessageId để backend lưu mối quan hệ phân nhánh)
-        const response = await chatApi.askQuestion(convId, trimmed, parentMessageId)
+        const response = await chatApi.askQuestion(
+          convId,
+          trimmed,
+          parentMessageId,
+          workflowMode,
+        )
 
         // Cập nhật lại tin nhắn chính thức từ backend vào rawMessagesRef
         const newItems: ConversationMessage[] = []
@@ -960,6 +980,8 @@ export function useChat(initialConversationId?: string | null): UseChatReturn {
     downloadingAttachmentId,
     isLoading,
     error,
+    isLawyer,
+    workflowMode,
     selectedCitation,
     isCitationDrawerOpen,
     setIsCitationDrawerOpen,

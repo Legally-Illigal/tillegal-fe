@@ -6,6 +6,7 @@ import {
   Copy,
   Pencil,
   Scale,
+  Sparkles,
   User,
 } from 'lucide-react'
 import * as React from 'react'
@@ -26,6 +27,7 @@ export interface MessageItemProps {
   onEditInPlace?: (messageId: string, newContent: string) => Promise<void>
   onSwitchBranch?: (messageId: string, branchIndex: number) => void
   userInitial?: string
+  isLawyer?: boolean
 }
 
 export function MessageItem({
@@ -35,8 +37,17 @@ export function MessageItem({
   onEditInPlace,
   onSwitchBranch,
   userInitial = 'ND',
+  isLawyer = false,
 }: MessageItemProps) {
   const isUser = message.role === 'user'
+  const isMultiAgent =
+    !isUser &&
+    Boolean(
+      isLawyer ||
+        message.workflowMode === 'multi_agent' ||
+        message.content?.includes('[Đa Agent') ||
+        message.content?.includes('Hệ thống đã tổng hợp ý kiến từ nhiều chuyên gia'),
+    )
   const [copied, setCopied] = React.useState(false)
   const [isEditing, setIsEditing] = React.useState(false)
   const [editContent, setEditContent] = React.useState(message.content)
@@ -124,7 +135,9 @@ export function MessageItem({
           'size-8 shrink-0 shadow-xs ring-1',
           isUser
             ? 'ring-primary/20 bg-primary/10 text-primary'
-            : 'ring-border bg-card text-foreground',
+            : isMultiAgent
+              ? 'ring-primary/30 bg-primary/15 text-primary'
+              : 'ring-border bg-card text-foreground',
         )}
       >
         <AvatarFallback className="text-xs font-semibold">
@@ -134,6 +147,8 @@ export function MessageItem({
             ) : (
               <User className="size-4" />
             )
+          ) : isMultiAgent ? (
+            <Sparkles className="text-primary size-4" />
           ) : (
             <Bot className="text-primary size-4" />
           )}
@@ -149,7 +164,23 @@ export function MessageItem({
       >
         {/* Header / Meta */}
         <div className="text-muted-foreground flex items-center gap-2 px-1 text-[11px]">
-          <span className="font-medium">{isUser ? 'Bạn' : 'Trợ lý Tillegal AI'}</span>
+          <div className="flex items-center gap-1.5 font-medium">
+            <span>
+              {isUser
+                ? 'Bạn'
+                : isMultiAgent
+                  ? 'Trợ lý Tillegal AI (Multi-Agent)'
+                  : 'Trợ lý Tillegal AI'}
+            </span>
+            {isMultiAgent && (
+              <Badge
+                variant="secondary"
+                className="bg-primary/10 text-primary border-primary/20 h-4 px-1.5 py-0 text-[10px] font-normal"
+              >
+                Đa tác tử
+              </Badge>
+            )}
+          </div>
           {message.createdAt && <span>• {formatTime(message.createdAt)}</span>}
           {message.updatedAt && (
             <span className="text-[10px] italic">(đã chỉnh sửa)</span>
@@ -267,6 +298,12 @@ export function MessageItem({
             )
           ) : (
             <div className="space-y-4">
+              {isMultiAgent && (
+                <div className="border-primary/20 bg-primary/5 text-primary mb-2 flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium">
+                  <Sparkles className="size-3.5 shrink-0" />
+                  <span>Tư vấn phân tích đa chiều từ Hệ thống Multi-Agent Luật sư</span>
+                </div>
+              )}
               <MessageContent
                 content={message.content}
                 citations={message.citations}

@@ -12,6 +12,7 @@ import type {
   MessageBranch,
   UpdateConversationRequest,
   UpdateMessageRequest,
+  WorkflowMode,
 } from '../types/chat.types'
 
 /**
@@ -170,12 +171,24 @@ export function normalizeMessage(raw: unknown): ConversationMessage {
   const parentMessageId =
     rawParentId != null && String(rawParentId).trim() !== '' ? String(rawParentId) : null
 
+  const rawWorkflowMode = m.workflowMode ?? m.workflow_mode
+  const contentStr = String(m.content ?? '')
+  let workflowMode: WorkflowMode | null = null
+  if (rawWorkflowMode === 'multi_agent' || rawWorkflowMode === 'single_agent') {
+    workflowMode = rawWorkflowMode
+  } else if (
+    contentStr.includes('[Đa Agent') ||
+    contentStr.includes('Hệ thống đã tổng hợp ý kiến từ nhiều chuyên gia')
+  ) {
+    workflowMode = 'multi_agent'
+  }
+
   return {
     id: String(m.id || `msg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`),
     conversationId: String(m.conversationId ?? m.conversation_id ?? ''),
     parentMessageId,
     role,
-    content: String(m.content ?? ''),
+    content: contentStr,
     citations: Array.isArray(citations) ? (citations as CitationItem[]) : null,
     createdAt: String(m.createdAt ?? m.created_at ?? new Date().toISOString()),
     updatedAt:
@@ -184,6 +197,7 @@ export function normalizeMessage(raw: unknown): ConversationMessage {
         : m.updated_at != null
           ? String(m.updated_at)
           : null,
+    workflowMode,
   }
 }
 
@@ -576,13 +590,22 @@ export const chatApi = {
     conversationId: string,
     content: string,
     parentMessageId?: string | null,
+    workflowMode?: WorkflowMode | null,
   ): Promise<AskQuestionResponse> {
-    const payload: { role: string; content: string; parentMessageId?: string | null } = {
+    const payload: {
+      role: string
+      content: string
+      parentMessageId?: string | null
+      workflowMode?: string | null
+    } = {
       content,
       role: 'user',
     }
     if (parentMessageId) {
       payload.parentMessageId = parentMessageId
+    }
+    if (workflowMode) {
+      payload.workflowMode = workflowMode
     }
 
     const response = await apiClient.post<any>(
@@ -599,6 +622,7 @@ export const chatApi = {
             role: 'user',
             conversationId,
             parentMessageId,
+            workflowMode,
           },
         ),
         assistantMessage: normalizeMessage(
@@ -606,14 +630,42 @@ export const chatApi = {
             content: 'Hệ thống đã ghi nhận câu hỏi của bạn.',
             role: 'assistant',
             conversationId,
+            workflowMode,
           },
         ),
       }
     }
 
-    // TH2: Backend trả về MessageApiResponse (tin nhắn user vừa tạo)
+    // TH2: Backend trả về MessageApiResponse
     if (response && response.id) {
-      const userMessage = normalizeMessage(response)
+      const normalized = normalizeMessage(response)
+
+      // TH2a: Backend trả về tin nhắn assistant trực tiếp (Đã thực thi AI workflow và lưu cả user message lẫn assistant message vào DB)
+      if (normalized.role === 'assistant') {
+        const userMsgId =
+          normalized.parentMessageId && String(normalized.parentMessageId).trim() !== ''
+            ? String(normalized.parentMessageId)
+            : `user-${Date.now()}`
+
+        const userMessage: ConversationMessage = {
+          id: userMsgId,
+          conversationId,
+          parentMessageId: parentMessageId ?? null,
+          role: 'user',
+          content,
+          citations: null,
+          createdAt: normalized.createdAt || new Date().toISOString(),
+          workflowMode: workflowMode ?? normalized.workflowMode ?? null,
+        }
+
+        return {
+          userMessage,
+          assistantMessage: normalized,
+        }
+      }
+
+      // TH2b: Backend legacy chỉ lưu user message và trả về user message
+      const userMessage = normalized
       const assistantReply = generateAssistantReply(content)
 
       let assistantMessage: ConversationMessage
@@ -637,6 +689,7 @@ export const chatApi = {
           content: assistantReply.content,
           citations: assistantReply.citations,
           createdAt: new Date().toISOString(),
+          workflowMode: workflowMode ?? null,
         }
       }
 
@@ -656,6 +709,7 @@ export const chatApi = {
         role: 'user',
         content,
         createdAt: new Date().toISOString(),
+        workflowMode: workflowMode ?? null,
       },
       assistantMessage: {
         id: `asst-${Date.now()}`,
@@ -664,6 +718,7 @@ export const chatApi = {
         role: 'assistant',
         content: 'Yêu cầu của bạn đã được ghi nhận vào hệ thống.',
         createdAt: new Date().toISOString(),
+        workflowMode: workflowMode ?? null,
       },
     }
   },
