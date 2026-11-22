@@ -1,4 +1,4 @@
-# Hợp Đồng API: Xác Thực & Quản Lý Tài Khoản (Auth Endpoints)
+﻿# Hợp Đồng API: Xác Thực & Quản Lý Tài Khoản (Auth Endpoints)
 
 Hợp đồng được đối chiếu trực tiếp từ `Tillegal.Api.Controllers.AuthController` và các hợp đồng trong `Tillegal.Api.Contracts.Auth`.
 
