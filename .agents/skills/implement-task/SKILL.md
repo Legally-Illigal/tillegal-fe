@@ -22,6 +22,7 @@ description: Implement a bounded software task from its requirements and accepta
 
 - expanding the task into unrelated refactoring;
 - making irreversible or destructive changes;
+- running any Git command that modifies the repository (add, commit, rebase, push, etc.); Git is read-only unless the user explicitly approves the specific action, and tasks end with changes left uncommitted for user review;
 - changing a major architectural decision;
 - introducing a new dependency with material impact;
 - choosing between materially different product behaviors not specified by the task.
