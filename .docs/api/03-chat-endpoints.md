@@ -33,6 +33,20 @@ export interface Conversation {
   createdAt: string // ISO 8601 DateTimeOffset
   updatedAt?: string | null
 }
+
+export interface ConversationAttachment {
+  id: string // Guid
+  conversationId: string // Guid
+  userId: string // Guid
+  fileName: string | null
+  fileSize: number // int64
+  contentType: string | null
+  processingStatus: string | null
+  tokenCount: number | null
+  fileHash: string | null
+  createdAt: string // ISO 8601 DateTimeOffset
+  updatedAt: string | null
+}
 ```
 
 ## 2. Danh Sách Endpoint

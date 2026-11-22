@@ -4,7 +4,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { CitationItem } from '@/features/citation'
 import { apiClient } from '@/lib/api/client'
 import { ApiError } from '@/lib/api/types'
-import { chatApi, normalizeAttachment, normalizeMessage } from './api/chat-api'
+import {
+  chatApi,
+  normalizeAttachment,
+  normalizeConversation,
+  normalizeMessage,
+} from './api/chat-api'
 import { AttachmentDrawer } from './components/attachment-drawer'
 import { ChatInput } from './components/chat-input'
 import { ChatSidebar } from './components/chat-sidebar'
@@ -61,6 +66,135 @@ describe('Chat Feature', () => {
       const remaining = chatApi.getLocalConversations()
       expect(remaining).toHaveLength(1)
       expect(remaining[0]?.id).toBe('c2')
+    })
+
+    it('sanitizes and purges contaminated conversations from another user in local storage', () => {
+      const userAId = 'user-a-1111'
+      const userBId = 'user-b-2222'
+
+      // Contaminate local storage for user A with an item belonging to user B
+      const key = `tillegal_saved_conversations_${userAId}`
+      localStorage.setItem(
+        key,
+        JSON.stringify([
+          { id: 'c-a', userId: userAId, title: 'Hội thoại A', createdAt: '' },
+          {
+            id: 'c-b',
+            userId: userBId,
+            title: 'Hội thoại B của người khác',
+            createdAt: '',
+          },
+        ]),
+      )
+
+      const safeList = chatApi.getLocalConversations(userAId)
+      expect(safeList).toHaveLength(1)
+      expect(safeList[0]?.id).toBe('c-a')
+
+      // Check that localStorage was cleaned
+      const cleaned = JSON.parse(localStorage.getItem(key) || '[]')
+      expect(cleaned).toHaveLength(1)
+      expect(cleaned[0].id).toBe('c-a')
+    })
+
+    it('refuses to save a conversation belonging to a different user', () => {
+      const userAId = 'user-a-1111'
+      const userBId = 'user-b-2222'
+
+      chatApi.saveLocalConversation(
+        { id: 'c-foreign', userId: userBId, title: 'Hội thoại B', createdAt: '' },
+        userAId,
+      )
+
+      const stored = chatApi.getLocalConversations(userAId)
+      expect(stored).toHaveLength(0)
+    })
+  })
+
+  describe('Session mismatch & ownership security guards', () => {
+    afterEach(() => {
+      vi.restoreAllMocks()
+    })
+
+    it('normalizes conversation object and formats userId to lowercase', () => {
+      const conv = normalizeConversation({
+        id: 'conv-99',
+        user_id: 'USER-UUID-ABCD',
+        title: 'Tư vấn tranh chấp đất',
+      })
+
+      expect(conv.id).toBe('conv-99')
+      expect(conv.userId).toBe('user-uuid-abcd')
+      expect(conv.title).toBe('Tư vấn tranh chấp đất')
+    })
+
+    it('throws ApiError and fires auth:session-mismatch when getConversations receives foreign user conversations', async () => {
+      const activeUserId = '20000000-0000-0000-0000-000000000001'
+      const foreignUserId = '99999999-9999-9999-9999-999999999999'
+
+      const mismatchSpy = vi.fn()
+      window.addEventListener('auth:session-mismatch', mismatchSpy)
+
+      vi.spyOn(apiClient, 'get').mockResolvedValueOnce([
+        {
+          id: 'conv-foreign-1',
+          userId: foreignUserId,
+          title: 'Hội thoại bí mật của người khác',
+          createdAt: '2026-11-12T10:00:00Z',
+        },
+      ])
+
+      await expect(chatApi.getConversations(activeUserId)).rejects.toThrow(ApiError)
+      expect(mismatchSpy).toHaveBeenCalledTimes(1)
+
+      // Ensure foreign data was NOT saved into active user's local storage
+      const key = `tillegal_saved_conversations_${activeUserId}`
+      expect(localStorage.getItem(key)).toBeNull()
+
+      window.removeEventListener('auth:session-mismatch', mismatchSpy)
+    })
+
+    it('throws ApiError and fires auth:session-mismatch when createConversation creates under another user', async () => {
+      const activeUserId = '20000000-0000-0000-0000-000000000001'
+      const foreignUserId = '99999999-9999-9999-9999-999999999999'
+
+      const mismatchSpy = vi.fn()
+      window.addEventListener('auth:session-mismatch', mismatchSpy)
+
+      vi.spyOn(apiClient, 'post').mockResolvedValueOnce({
+        id: 'new-conv',
+        userId: foreignUserId,
+        title: 'Tạo dưới tài khoản khác',
+      })
+
+      await expect(
+        chatApi.createConversation({ title: 'Test' }, activeUserId),
+      ).rejects.toThrow(ApiError)
+      expect(mismatchSpy).toHaveBeenCalledTimes(1)
+
+      window.removeEventListener('auth:session-mismatch', mismatchSpy)
+    })
+
+    it('throws ApiError and fires auth:session-mismatch when getAttachments returns attachments of another user', async () => {
+      const activeUserId = 'user-a'
+      const foreignUserId = 'user-b'
+
+      const mismatchSpy = vi.fn()
+      window.addEventListener('auth:session-mismatch', mismatchSpy)
+
+      vi.spyOn(apiClient, 'get').mockResolvedValueOnce([
+        {
+          id: 'att-foreign',
+          conversationId: 'c1',
+          userId: foreignUserId,
+          fileName: 'tai-lieu-bi-mat.pdf',
+        },
+      ])
+
+      await expect(chatApi.getAttachments('c1', activeUserId)).rejects.toThrow(ApiError)
+      expect(mismatchSpy).toHaveBeenCalledTimes(1)
+
+      window.removeEventListener('auth:session-mismatch', mismatchSpy)
     })
   })
 

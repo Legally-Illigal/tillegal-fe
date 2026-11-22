@@ -557,30 +557,25 @@ export const chatApi = {
    * Lấy danh sách tin nhắn của cuộc hội thoại
    */
   async getMessages(conversationId: string, limit = 50): Promise<ConversationMessage[]> {
-    try {
-      const response = await apiClient.get<
-        | ConversationMessage[]
-        | { data?: unknown[]; has_more?: boolean; next_cursor?: string | null }
-      >(API_ENDPOINTS.conversations.messages(conversationId), {
-        params: { limit },
-      })
+    const response = await apiClient.get<
+      | ConversationMessage[]
+      | { data?: unknown[]; has_more?: boolean; next_cursor?: string | null }
+    >(API_ENDPOINTS.conversations.messages(conversationId), {
+      params: { limit },
+    })
 
-      let rawList: unknown[] = []
-      if (Array.isArray(response)) {
-        rawList = response
-      } else if (
-        response &&
-        typeof response === 'object' &&
-        Array.isArray((response as { data?: unknown[] }).data)
-      ) {
-        rawList = (response as { data: unknown[] }).data
-      }
-
-      return rawList.map(normalizeMessage)
-    } catch (err) {
-      console.error('Lỗi khi tải tin nhắn hội thoại:', err)
-      return []
+    let rawList: unknown[] = []
+    if (Array.isArray(response)) {
+      rawList = response
+    } else if (
+      response &&
+      typeof response === 'object' &&
+      Array.isArray((response as { data?: unknown[] }).data)
+    ) {
+      rawList = (response as { data: unknown[] }).data
     }
+
+    return rawList.map(normalizeMessage)
   },
 
   /**
