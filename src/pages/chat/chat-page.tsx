@@ -242,16 +242,16 @@ export function ChatPage() {
                 {isLawyer ? (
                   <Badge
                     variant="outline"
-                    className="border-primary/40 bg-primary/10 text-primary hidden sm:inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium"
+                    className="border-primary/40 bg-primary/10 text-primary hidden items-center gap-1 px-2 py-0.5 text-[11px] font-medium sm:inline-flex"
                     title="Chế độ Multi-Agent: Hệ thống phối hợp các chuyên gia AI phân tích chuyên sâu dành cho Luật sư"
                   >
-                    <Sparkles className="size-3 text-primary animate-pulse" />
+                    <Sparkles className="text-primary size-3 animate-pulse" />
                     <span>Chế độ Multi-Agent</span>
                   </Badge>
                 ) : (
                   <Badge
                     variant="outline"
-                    className="border-muted bg-muted/40 text-muted-foreground hidden sm:inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium"
+                    className="border-muted bg-muted/40 text-muted-foreground hidden items-center gap-1 px-2 py-0.5 text-[11px] font-medium sm:inline-flex"
                   >
                     <Bot className="size-3" />
                     <span>Trợ lý AI Tiêu chuẩn</span>

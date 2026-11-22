@@ -66,6 +66,7 @@ Tất cả các endpoint dưới đây đều yêu cầu xác thực (`[Authoriz
 ### B. Gửi Câu Hỏi & Nhận Phản Hồi AI (`POST /api/conversations/{id}/messages`)
 
 Backend tự động phân luồng xử lý AI theo vai trò người dùng (Role-Based AI Consultation):
+
 - **Người dùng phổ thông (`User`):** Kích hoạt luồng tư vấn đơn tác tử tiêu chuẩn (`workflow_mode: "single_agent"`).
 - **Luật sư (`Lawyer` / `Lawer`):** Kích hoạt luồng tư vấn đa tác tử chuyên sâu (`workflow_mode: "multi_agent"`), phối hợp nhiều Agent chuyên trách để bóc tách rủi ro, phân tích đa chiều và tổng hợp câu trả lời chuyên sâu cùng trích dẫn pháp lý minh bạch.
 
@@ -105,7 +106,7 @@ Khi nhận câu hỏi với `role = "user"`, Backend tự động lưu câu hỏ
     "updatedAt": null
   }
   ```
-  *(Frontend tự động liên kết `userMessage` với ID từ `parentMessageId` của `assistantMessage` và đồng bộ đầy đủ cả 2 tin nhắn vào chuỗi hội thoại mà không cần gửi thêm request trùng lặp. Định dạng trả về `{ userMessage, assistantMessage }` cũng được hỗ trợ tương thích ngược).*
+  _(Frontend tự động liên kết `userMessage` với ID từ `parentMessageId` của `assistantMessage` và đồng bộ đầy đủ cả 2 tin nhắn vào chuỗi hội thoại mà không cần gửi thêm request trùng lặp. Định dạng trả về `{ userMessage, assistantMessage }` cũng được hỗ trợ tương thích ngược)._
 
 ---
 

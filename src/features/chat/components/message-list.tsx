@@ -181,18 +181,15 @@ export function MessageList({
 
           <div className="flex max-w-[88%] flex-col gap-1.5 sm:max-w-[80%]">
             <div className="text-muted-foreground flex items-center gap-2 px-1 text-[11px]">
-              <span className="font-semibold text-primary">
+              <span className="text-primary font-semibold">
                 {isLawyer ? 'Hệ thống Multi-Agent Luật sư' : 'Trợ lý Tillegal AI'}
               </span>
               <span>
-                •{' '}
-                {isLawyer
-                  ? 'Đang điều phối quy trình đa tác tử...'
-                  : 'Đang xử lý...'}
+                • {isLawyer ? 'Đang điều phối quy trình đa tác tử...' : 'Đang xử lý...'}
               </span>
             </div>
 
-            <div className="border-border/80 bg-card rounded-2xl rounded-tl-xs border p-4 shadow-xs space-y-2.5">
+            <div className="border-border/80 bg-card space-y-2.5 rounded-2xl rounded-tl-xs border p-4 shadow-xs">
               <div className="text-foreground flex items-center gap-2 text-xs font-medium">
                 <Loader2 className="text-primary size-4 animate-spin" />
                 <span>
@@ -203,18 +200,25 @@ export function MessageList({
               </div>
 
               {isLawyer && (
-                <div className="border-border/50 grid gap-1.5 border-t pt-2 text-[11px] text-muted-foreground">
+                <div className="border-border/50 text-muted-foreground grid gap-1.5 border-t pt-2 text-[11px]">
                   <div className="flex items-center gap-2">
-                    <span className="inline-block size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    <span>Agent 1: Rà soát & truy xuất văn bản quy phạm pháp luật liên quan</span>
+                    <span className="inline-block size-1.5 animate-pulse rounded-full bg-emerald-500" />
+                    <span>
+                      Agent 1: Rà soát & truy xuất văn bản quy phạm pháp luật liên quan
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="inline-block size-1.5 rounded-full bg-blue-500 animate-pulse" />
-                    <span>Agent 2: Phân tích đa chiều, phản biện rủi ro & tình huống áp dụng</span>
+                    <span className="inline-block size-1.5 animate-pulse rounded-full bg-blue-500" />
+                    <span>
+                      Agent 2: Phân tích đa chiều, phản biện rủi ro & tình huống áp dụng
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="inline-block size-1.5 rounded-full bg-purple-500 animate-pulse" />
-                    <span>Agent Tổng hợp: Kiểm chứng trích dẫn & hoàn thiện bản tư vấn chuyên sâu</span>
+                    <span className="inline-block size-1.5 animate-pulse rounded-full bg-purple-500" />
+                    <span>
+                      Agent Tổng hợp: Kiểm chứng trích dẫn & hoàn thiện bản tư vấn chuyên
+                      sâu
+                    </span>
                   </div>
                 </div>
               )}

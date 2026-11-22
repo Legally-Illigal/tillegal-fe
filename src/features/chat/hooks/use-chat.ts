@@ -586,7 +586,7 @@ export function useChat(initialConversationId?: string | null): UseChatReturn {
         setIsLoading(false)
       }
     },
-    [isLoading, messages],
+    [isLoading, isLawyer, messages, workflowMode],
   )
 
   const switchMessageBranch = React.useCallback(
@@ -779,7 +779,7 @@ export function useChat(initialConversationId?: string | null): UseChatReturn {
         setIsLoading(false)
       }
     },
-    [activeConversationId, isLoading, messages, userId],
+    [activeConversationId, isLoading, messages, userId, workflowMode],
   )
 
   const refreshAttachments = React.useCallback(async () => {

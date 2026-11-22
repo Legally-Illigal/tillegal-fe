@@ -1,4 +1,4 @@
-import type { ConversationMessage, WorkflowMode } from '../types/chat.types'
+import type { ConversationMessage } from '../types/chat.types'
 
 /**
  * Kiểm tra xem vai trò tài khoản có phải là Luật sư (Lawyer) hay không

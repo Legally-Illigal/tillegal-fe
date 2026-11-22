@@ -44,9 +44,9 @@ export function MessageItem({
     !isUser &&
     Boolean(
       isLawyer ||
-        message.workflowMode === 'multi_agent' ||
-        message.content?.includes('[Đa Agent') ||
-        message.content?.includes('Hệ thống đã tổng hợp ý kiến từ nhiều chuyên gia'),
+      message.workflowMode === 'multi_agent' ||
+      message.content?.includes('[Đa Agent') ||
+      message.content?.includes('Hệ thống đã tổng hợp ý kiến từ nhiều chuyên gia'),
     )
   const [copied, setCopied] = React.useState(false)
   const [isEditing, setIsEditing] = React.useState(false)

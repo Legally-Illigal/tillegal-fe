@@ -1056,34 +1056,19 @@ describe('Chat Feature', () => {
       }
 
       render(<MessageItem message={assistantMsg} isLawyer={true} />)
-      expect(
-        screen.getByText('Trợ lý Tillegal AI (Multi-Agent)'),
-      ).toBeInTheDocument()
+      expect(screen.getByText('Trợ lý Tillegal AI (Multi-Agent)')).toBeInTheDocument()
       expect(screen.getByText('Đa tác tử')).toBeInTheDocument()
       expect(
-        screen.getByText(
-          'Tư vấn phân tích đa chiều từ Hệ thống Multi-Agent Luật sư',
-        ),
+        screen.getByText('Tư vấn phân tích đa chiều từ Hệ thống Multi-Agent Luật sư'),
       ).toBeInTheDocument()
     })
 
     it('renders lawyer-specific quick chips and placeholder in ChatInput', () => {
-      render(
-        <ChatInput
-          onSend={vi.fn()}
-          isLawyer={true}
-        />,
-      )
+      render(<ChatInput onSend={vi.fn()} isLawyer={true} />)
 
-      expect(
-        screen.getByText('Phân tích rủi ro & đa góc nhìn'),
-      ).toBeInTheDocument()
-      expect(
-        screen.getByText('Luận cứ tranh tụng & phản biện'),
-      ).toBeInTheDocument()
-      expect(
-        screen.getByText('Thẩm định điều khoản & tiền lệ'),
-      ).toBeInTheDocument()
+      expect(screen.getByText('Phân tích rủi ro & đa góc nhìn')).toBeInTheDocument()
+      expect(screen.getByText('Luận cứ tranh tụng & phản biện')).toBeInTheDocument()
+      expect(screen.getByText('Thẩm định điều khoản & tiền lệ')).toBeInTheDocument()
       expect(
         screen.getByPlaceholderText(
           'Mô tả vụ việc, yêu cầu tư vấn chuyên sâu hoặc chiến lược tranh tụng...',
