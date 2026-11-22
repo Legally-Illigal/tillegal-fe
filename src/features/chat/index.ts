@@ -1,4 +1,4 @@
-﻿export * from './types/chat.types'
+export * from './types/chat.types'
 export * from './utils/attachment-helpers'
 export * from './api/chat-api'
 export * from './hooks/use-chat'

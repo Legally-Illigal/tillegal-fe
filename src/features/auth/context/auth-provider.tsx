@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { authApi } from '../api/auth-api'
 import { chatApi } from '@/features/chat/api/chat-api'
