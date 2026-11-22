@@ -1,4 +1,4 @@
-﻿# Hợp Đồng API: Xác Thực & Quản Lý Tài Khoản (Auth Endpoints)
+# Hợp Đồng API: Xác Thực & Quản Lý Tài Khoản (Auth Endpoints)
 
 Hợp đồng được đối chiếu trực tiếp từ `Tillegal.Api.Controllers.AuthController` và các hợp đồng trong `Tillegal.Api.Contracts.Auth`.
 
@@ -149,22 +149,6 @@ Hủy phiên làm việc phía máy chủ bằng cách xóa cookie `access_token
 
 ---
 
-### G. Lấy Thông Tin Người Dùng Hiện Tại (`GET /api/auth/me`)
+### G. Lấy Thông Tin Người Dùng Hiện Tại (Đã chuyển sang `GET /api/users/me`)
 
-Xác thực phiên làm việc đang hoạt động và trả về thông tin người dùng được định danh từ token/cookie, đồng thời kiểm tra tài khoản còn đang hoạt động (`user.IsActive == true`).
-
-- **Yêu cầu xác thực:** `[Authorize]`
-- **Response (200 OK):**
-  ```json
-  {
-    "id": "20000000-0000-0000-0000-000000000001",
-    "fullName": "Nguyễn Văn A",
-    "email": "user@example.com",
-    "phoneNumber": "0912345678",
-    "role": "User",
-    "isActive": true
-  }
-  ```
-- **Response Lỗi:**
-  - `401 Unauthorized`: Token không hợp lệ, phiên hết hạn hoặc tài khoản đã bị khóa/vô hiệu hóa (`IsActive == false`).
-  - `404 NotFound`: Không tìm thấy tài khoản tương ứng trong hệ thống.
+> **Lưu ý cập nhật baseline:** Endpoint `GET /api/auth/me` trước đây đã được chuẩn hóa và chuyển sang `GET /api/users/me` thuộc nhóm User Endpoints (xem chi tiết tại tài liệu [05-user-endpoints.md](./05-user-endpoints.md)). Các thông tin trả về bao gồm thông tin định danh mở rộng `createdAt` và `lastActiveAt`.

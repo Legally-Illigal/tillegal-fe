@@ -47,6 +47,9 @@ export function translateAuthMessage(message: string): string {
   }
 
   // Password errors
+  if (lower.includes('new password is required')) {
+    return 'Vui lòng nhập mật khẩu mới.'
+  }
   if (
     lower.includes('password must be at least 8 characters') ||
     lower.includes('tối thiểu 8')
@@ -64,6 +67,17 @@ export function translateAuthMessage(message: string): string {
   }
   if (lower.includes('password is required')) {
     return 'Vui lòng nhập mật khẩu.'
+  }
+  if (lower.includes('password has been successfully updated')) {
+    return 'Mật khẩu đã được cập nhật thành công.'
+  }
+
+  // Account status errors
+  if (lower.includes('administrators cannot lock or deactivate')) {
+    return 'Quản trị viên không thể tự vô hiệu hóa tài khoản của chính mình.'
+  }
+  if (lower.includes('user account has been deactivated')) {
+    return 'Tài khoản người dùng đã bị vô hiệu hóa.'
   }
 
   // Full name & Phone errors

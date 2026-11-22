@@ -29,6 +29,11 @@ import {
   MAX_ATTACHMENT_SIZE_BYTES,
   validateAttachmentFile,
 } from './utils/attachment-helpers'
+import {
+  isLawyerRole,
+  isLawyerUser,
+  isMultiAgentWorkflow,
+} from './utils/workflow-helpers'
 import { buildMessageThread } from './utils/message-tree'
 
 describe('Chat Feature', () => {
@@ -1032,6 +1037,177 @@ describe('Chat Feature', () => {
       await waitFor(() => {
         expect(onEditMessage).toHaveBeenCalledWith('m1', 'Câu hỏi nhánh 3 đã sửa')
       })
+    })
+  })
+
+  describe('Multi-Agent Role-Based AI Consultation for Lawyers', () => {
+    it('detects lawyer roles correctly via isLawyerRole and isLawyerUser', () => {
+      expect(isLawyerRole('Lawyer')).toBe(true)
+      expect(isLawyerRole('lawyer')).toBe(true)
+      expect(isLawyerRole('Lawer')).toBe(true)
+      expect(isLawyerRole('User')).toBe(false)
+      expect(isLawyerRole(null)).toBe(false)
+      expect(isLawyerRole(undefined)).toBe(false)
+
+      expect(isLawyerUser({ role: 'Lawyer' })).toBe(true)
+      expect(isLawyerUser({ role: 'User' })).toBe(false)
+      expect(isLawyerUser(null)).toBe(false)
+    })
+
+    it('detects multi-agent workflow correctly from message content, workflowMode, or lawyer user', () => {
+      expect(
+        isMultiAgentWorkflow(
+          {
+            id: 'm1',
+            conversationId: 'c1',
+            role: 'assistant',
+            content: '[Đa Agent - Chuyên sâu] Hệ thống đã tổng hợp ý kiến...',
+            createdAt: '',
+          },
+          null,
+        ),
+      ).toBe(true)
+
+      expect(
+        isMultiAgentWorkflow(
+          {
+            id: 'm2',
+            conversationId: 'c1',
+            role: 'assistant',
+            content: 'Nội dung thông thường',
+            createdAt: '',
+            workflowMode: 'multi_agent',
+          },
+          null,
+        ),
+      ).toBe(true)
+
+      expect(
+        isMultiAgentWorkflow(
+          {
+            id: 'm3',
+            conversationId: 'c1',
+            role: 'assistant',
+            content: 'Nội dung thông thường',
+            createdAt: '',
+          },
+          { role: 'Lawyer' },
+        ),
+      ).toBe(true)
+
+      expect(
+        isMultiAgentWorkflow(
+          {
+            id: 'm4',
+            conversationId: 'c1',
+            role: 'assistant',
+            content: 'Nội dung thông thường',
+            createdAt: '',
+          },
+          { role: 'User' },
+        ),
+      ).toBe(false)
+    })
+
+    it('handles backend assistant MessageApiResponse directly without duplicate POST', async () => {
+      const mockPost = vi.spyOn(apiClient, 'post').mockResolvedValueOnce({
+        id: 'asst-backend-uuid',
+        conversationId: 'conv-101',
+        parentMessageId: 'user-backend-uuid',
+        role: 'assistant',
+        content: '[Đa Agent - Chuyên sâu] Phân tích từ Hội đồng chuyên gia pháp lý.',
+        citations: [
+          {
+            id: 'cit-1',
+            index: 1,
+            documentTitle: 'Bộ luật Dân sự 2015',
+          },
+        ],
+        createdAt: '2026-11-20T10:00:00Z',
+      })
+
+      const response = await chatApi.askQuestion(
+        'conv-101',
+        'Tôi cần tư vấn tranh chấp thương mại',
+        null,
+        'multi_agent',
+      )
+
+      // Exactly 1 POST call to send user question to backend
+      expect(mockPost).toHaveBeenCalledTimes(1)
+      expect(mockPost).toHaveBeenCalledWith('/conversations/conv-101/messages', {
+        role: 'user',
+        content: 'Tôi cần tư vấn tranh chấp thương mại',
+        workflowMode: 'multi_agent',
+      })
+
+      // Associated userMessage has the parent ID from backend and assistantMessage has the AI result
+      expect(response.userMessage.id).toBe('user-backend-uuid')
+      expect(response.userMessage.role).toBe('user')
+      expect(response.userMessage.content).toBe('Tôi cần tư vấn tranh chấp thương mại')
+      expect(response.assistantMessage.id).toBe('asst-backend-uuid')
+      expect(response.assistantMessage.role).toBe('assistant')
+      expect(response.assistantMessage.workflowMode).toBe('multi_agent')
+      expect(response.assistantMessage.citations).toHaveLength(1)
+    })
+
+    it('renders lawyer-specific empty state and multi-agent loading state in MessageList', () => {
+      // Empty state for Lawyer
+      const { rerender } = render(
+        <MessageList messages={[]} isLoading={false} isLawyer={true} />,
+      )
+      expect(
+        screen.getByText('Chế độ Phân tích Chuyên sâu dành cho Luật sư'),
+      ).toBeInTheDocument()
+      expect(
+        screen.getByText('Trợ lý AI Pháp luật Đa Tác tử (Multi-Agent)'),
+      ).toBeInTheDocument()
+      expect(
+        screen.getByText(/Chiến lược phản biện & luận cứ tranh tụng/i),
+      ).toBeInTheDocument()
+
+      // Loading state for Lawyer
+      rerender(<MessageList messages={[]} isLoading={true} isLawyer={true} />)
+      expect(screen.getByText('Hệ thống Multi-Agent Luật sư')).toBeInTheDocument()
+      expect(
+        screen.getByText(/Agent 1: Rà soát & truy xuất văn bản quy phạm pháp luật/i),
+      ).toBeInTheDocument()
+      expect(
+        screen.getByText(/Agent 2: Phân tích đa chiều, phản biện rủi ro/i),
+      ).toBeInTheDocument()
+      expect(
+        screen.getByText(/Agent Tổng hợp: Kiểm chứng trích dẫn/i),
+      ).toBeInTheDocument()
+    })
+
+    it('renders Multi-Agent badge and banner in MessageItem for lawyer messages', () => {
+      const assistantMsg: ConversationMessage = {
+        id: 'asst-1',
+        conversationId: 'c1',
+        role: 'assistant',
+        content: 'Kết quả phân tích vụ án và căn cứ tố tụng.',
+        createdAt: '2026-11-20T10:00:00Z',
+      }
+
+      render(<MessageItem message={assistantMsg} isLawyer={true} />)
+      expect(screen.getByText('Trợ lý Tillegal AI (Multi-Agent)')).toBeInTheDocument()
+      expect(screen.getByText('Đa tác tử')).toBeInTheDocument()
+      expect(
+        screen.getByText('Tư vấn phân tích đa chiều từ Hệ thống Multi-Agent Luật sư'),
+      ).toBeInTheDocument()
+    })
+
+    it('renders lawyer-specific quick chips and placeholder in ChatInput', () => {
+      render(<ChatInput onSend={vi.fn()} isLawyer={true} />)
+
+      expect(screen.getByText('Phân tích rủi ro & đa góc nhìn')).toBeInTheDocument()
+      expect(screen.getByText('Luận cứ tranh tụng & phản biện')).toBeInTheDocument()
+      expect(screen.getByText('Thẩm định điều khoản & tiền lệ')).toBeInTheDocument()
+      expect(
+        screen.getByPlaceholderText(
+          'Mô tả vụ việc, yêu cầu tư vấn chuyên sâu hoặc chiến lược tranh tụng...',
+        ),
+      ).toBeInTheDocument()
     })
   })
 })

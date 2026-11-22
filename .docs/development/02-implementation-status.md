@@ -44,3 +44,11 @@
 
 - [x] Tích hợp kiểm chứng căn cứ trực tiếp trong phần hỏi đáp (`CitationBadge`, `CitationCard`, `CitationDrawer`, trích đoạn điều khoản gốc và tình trạng hiệu lực; điều hướng `/verify` về `/chat`).
 - [x] Giao diện đăng nhập, phân quyền hiển thị giữa Người dân và Luật sư (`LoginForm`, `RegisterForm`, `ProtectedRoute`).
+
+### Giai Đoạn 5: Quản Lý Hồ Sơ & Tài Khoản Cá Nhân (Feature: User Profile & Security)
+
+- [x] Chuẩn hóa hợp đồng User Endpoints (`GET /api/users/me`, `PUT /api/users/me`, `PUT /api/users/me/password`, `DELETE /api/users/me`).
+- [x] Module `src/features/user/` (`userApi`, `useUserProfile`, `ProfileInfoForm`, `ChangePasswordForm`, `DeactivateAccountCard`).
+- [x] Trang quản lý hồ sơ cá nhân `ProfilePage` (`/profile`) với điều hướng Tabs (`info`, `security`, `danger`).
+- [x] Tích hợp menu người dùng trên Header (`Thông tin tài khoản`), tự động đồng bộ `AuthContext` và `localStorage` khi cập nhật hồ sơ.
+- [x] Rào chắn an toàn: Ngăn chặn tài khoản Quản trị viên (Admin) tự vô hiệu hóa tài khoản của chính mình.

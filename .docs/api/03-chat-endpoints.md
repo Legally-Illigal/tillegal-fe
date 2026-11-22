@@ -79,50 +79,48 @@ Tất cả các endpoint dưới đây đều yêu cầu xác thực (`[Authoriz
 
 ### B. Gửi Câu Hỏi & Nhận Phản Hồi AI (`POST /api/conversations/{id}/messages`)
 
-Backend sẽ gửi câu hỏi kèm lịch sử trao đổi đến Python AI Service và lưu đồng thời cả 2 tin nhắn (câu hỏi của người dùng và câu trả lời kèm trích dẫn của trợ lý AI).
+Backend tự động phân luồng xử lý AI theo vai trò người dùng (Role-Based AI Consultation):
+
+- **Người dùng phổ thông (`User`):** Kích hoạt luồng tư vấn đơn tác tử tiêu chuẩn (`workflow_mode: "single_agent"`).
+- **Luật sư (`Lawyer` / `Lawer`):** Kích hoạt luồng tư vấn đa tác tử chuyên sâu (`workflow_mode: "multi_agent"`), phối hợp nhiều Agent chuyên trách để bóc tách rủi ro, phân tích đa chiều và tổng hợp câu trả lời chuyên sâu cùng trích dẫn pháp lý minh bạch.
+
+Khi nhận câu hỏi với `role = "user"`, Backend tự động lưu câu hỏi của người dùng vào DB, điều phối tới AI Service theo workflow mode tương ứng, lưu câu trả lời của trợ lý AI (với `parentMessageId` trỏ đến ID của tin nhắn người dùng vừa tạo) và trả về `201 Created`.
 
 - **URL Params:** `id` (Guid của cuộc hội thoại)
 - **Request Body:**
   ```json
   {
+    "role": "user",
     "content": "Tôi muốn biết thủ tục sang tên sổ đỏ khi nhận thừa kế cần những giấy tờ gì?",
     "parentMessageId": "40000000-0000-0000-0000-000000000000"
   }
   ```
-  _(Trường `parentMessageId` là tùy chọn; truyền null hoặc bỏ trống đối với tin nhắn khởi đầu, hoặc truyền ID của tin nhắn cha để tạo chuỗi nối tiếp / phân nhánh câu hỏi)._
-- **Response (200 OK):**
+  _(Trường `role` mặc định là "user"; `parentMessageId` là tùy chọn; truyền null hoặc bỏ trống đối với tin nhắn khởi đầu, hoặc truyền ID của tin nhắn cha để tạo chuỗi nối tiếp / phân nhánh câu hỏi)._
+- **Response (201 Created / 200 OK):**
+  Backend trả về `MessageApiResponse` của tin nhắn trợ lý AI đã tạo:
   ```json
   {
-    "userMessage": {
-      "id": "40000000-0000-0000-0000-000000000001",
-      "conversationId": "30000000-0000-0000-0000-000000000001",
-      "parentMessageId": "40000000-0000-0000-0000-000000000000",
-      "role": "user",
-      "content": "Tôi muốn biết thủ tục sang tên sổ đỏ khi nhận thừa kế cần những giấy tờ gì?",
-      "citations": null,
-      "createdAt": "2026-10-26T14:01:00Z"
-    },
-    "assistantMessage": {
-      "id": "40000000-0000-0000-0000-000000000002",
-      "conversationId": "30000000-0000-0000-0000-000000000001",
-      "parentMessageId": "40000000-0000-0000-0000-000000000001",
-      "role": "assistant",
-      "content": "### 1. Cơ sở pháp lý\nCăn cứ quy định tại Luật Đất đai[^1]...",
-      "citations": [
-        {
-          "id": "cit-001",
-          "index": 1,
-          "documentTitle": "Luật Đất đai 2024",
-          "documentNumber": "31/2024/QH15",
-          "articleReference": "Điều 45, Khoản 1",
-          "sourceUrl": "https://thuvienphapluat.vn/van-ban/Bat-dong-san/Luat-Dat-dai-2024-523642.aspx",
-          "citedText": "Điều kiện thực hiện các quyền chuyển đổi, chuyển nhượng, cho thuê, thừa kế..."
-        }
-      ],
-      "createdAt": "2026-10-26T14:01:05Z"
-    }
+    "id": "40000000-0000-0000-0000-000000000002",
+    "conversationId": "30000000-0000-0000-0000-000000000001",
+    "parentMessageId": "40000000-0000-0000-0000-000000000001",
+    "role": "assistant",
+    "content": "### 1. Cơ sở pháp lý\nCăn cứ quy định tại Luật Đất đai[^1]...",
+    "citations": [
+      {
+        "id": "cit-001",
+        "index": 1,
+        "documentTitle": "Luật Đất đai 2024",
+        "documentNumber": "31/2024/QH15",
+        "articleReference": "Điều 45, Khoản 1",
+        "sourceUrl": "https://thuvienphapluat.vn/van-ban/Bat-dong-san/Luat-Dat-dai-2024-523642.aspx",
+        "citedText": "Điều kiện thực hiện các quyền chuyển đổi, chuyển nhượng, cho thuê, thừa kế..."
+      }
+    ],
+    "createdAt": "2026-10-26T14:01:05Z",
+    "updatedAt": null
   }
   ```
+  _(Frontend tự động liên kết `userMessage` với ID từ `parentMessageId` của `assistantMessage` và đồng bộ đầy đủ cả 2 tin nhắn vào chuỗi hội thoại mà không cần gửi thêm request trùng lặp. Định dạng trả về `{ userMessage, assistantMessage }` cũng được hỗ trợ tương thích ngược)._
 
 ---
 

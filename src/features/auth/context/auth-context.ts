@@ -19,6 +19,8 @@ export interface AuthContextValue extends AuthState {
   loginWithGoogle: (idToken: string) => Promise<void>
   registerWithGoogle: (idToken: string) => Promise<void>
   logout: () => void
+  updateUser: (updated: Partial<UserProfile>) => void
+  refreshUser: () => Promise<UserProfile | null>
 }
 
 export const AuthContext = createContext<AuthContextValue | undefined>(undefined)

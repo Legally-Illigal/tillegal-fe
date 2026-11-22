@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
-import { LogOut, MessageSquare, Scale, ShieldCheck } from 'lucide-react'
+import { LogOut, MessageSquare, Scale, ShieldCheck, User } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -139,6 +139,12 @@ export function Header() {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem asChild className="cursor-pointer">
+                  <Link to="/profile">
+                    <User className="mr-2 size-4" />
+                    <span>Thông tin tài khoản</span>
+                  </Link>
+                </DropdownMenuItem>
                 {isAdmin && (
                   <DropdownMenuItem asChild className="cursor-pointer">
                     <Link to="/admin">

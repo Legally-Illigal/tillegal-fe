@@ -17,6 +17,7 @@ import {
   getAttachmentStatusMeta,
   validateAttachmentFile,
 } from '../utils/attachment-helpers'
+import { isLawyerUser } from '../utils/workflow-helpers'
 import { buildMessageThread } from '../utils/message-tree'
 
 export interface UseChatReturn {
@@ -32,6 +33,8 @@ export interface UseChatReturn {
   downloadingAttachmentId: string | null
   isLoading: boolean
   error: string | null
+  isLawyer: boolean
+  workflowMode: 'single_agent' | 'multi_agent'
   selectedCitation: CitationItem | null
   isCitationDrawerOpen: boolean
   setIsCitationDrawerOpen: (open: boolean) => void
@@ -100,6 +103,8 @@ export function deduplicateMessages(list: ConversationMessage[]): ConversationMe
 export function useChat(initialConversationId?: string | null): UseChatReturn {
   const { user } = useAuth()
   const userId = user?.id
+  const isLawyer = React.useMemo(() => isLawyerUser(user), [user])
+  const workflowMode = isLawyer ? 'multi_agent' : 'single_agent'
 
   const isSendingRef = React.useRef(false)
   const skipFetchForConvIdRef = React.useRef<string | null>(null)
@@ -512,7 +517,12 @@ export function useChat(initialConversationId?: string | null): UseChatReturn {
         let assistantMsg: ConversationMessage
 
         try {
-          const response = await chatApi.askQuestion(convId, trimmed, parentMessageId)
+          const response = await chatApi.askQuestion(
+            convId,
+            trimmed,
+            parentMessageId,
+            workflowMode,
+          )
           newBranchedUserMsg = response.userMessage
           assistantMsg = response.assistantMessage
         } catch {
@@ -524,16 +534,21 @@ export function useChat(initialConversationId?: string | null): UseChatReturn {
             role: 'user',
             content: trimmed,
             createdAt: new Date().toISOString(),
+            workflowMode,
           }
           const reply = generateAssistantReply(trimmed)
+          const modeNotice = isLawyer
+            ? '[Đa Agent - Chuyên sâu] Hệ thống đã tổng hợp ý kiến từ nhiều chuyên gia pháp lý.\n\n'
+            : ''
           assistantMsg = {
             id: `asst-${Date.now()}`,
             conversationId: convId,
             parentMessageId: fallbackUserId,
             role: 'assistant',
-            content: reply.content,
+            content: `${modeNotice}${reply.content}`,
             citations: reply.citations,
             createdAt: new Date().toISOString(),
+            workflowMode,
           }
         }
 
@@ -571,7 +586,7 @@ export function useChat(initialConversationId?: string | null): UseChatReturn {
         setIsLoading(false)
       }
     },
-    [isLoading, messages],
+    [isLoading, isLawyer, messages, workflowMode],
   )
 
   const switchMessageBranch = React.useCallback(
@@ -726,7 +741,12 @@ export function useChat(initialConversationId?: string | null): UseChatReturn {
         }
 
         // Gửi câu hỏi đến backend (kèm parentMessageId để backend lưu mối quan hệ phân nhánh)
-        const response = await chatApi.askQuestion(convId, trimmed, parentMessageId)
+        const response = await chatApi.askQuestion(
+          convId,
+          trimmed,
+          parentMessageId,
+          workflowMode,
+        )
 
         // Cập nhật lại tin nhắn chính thức từ backend vào rawMessagesRef
         const newItems: ConversationMessage[] = []
@@ -759,192 +779,7 @@ export function useChat(initialConversationId?: string | null): UseChatReturn {
         setIsLoading(false)
       }
     },
-    [activeConversationId, isLoading, messages, userId],
-  )
-
-  const refreshAttachments = React.useCallback(async () => {
-    if (!activeConversationId) return
-    await loadAttachments(activeConversationId)
-  }, [activeConversationId, loadAttachments])
-
-  const refreshAttachmentDetail = React.useCallback(
-    async (attachmentId: string): Promise<ConversationAttachment | null> => {
-      const convId = activeConversationIdRef.current
-      if (!convId) return null
-
-      try {
-        const updated = await chatApi.getAttachment(convId, attachmentId)
-        if (activeConversationIdRef.current === convId) {
-          setAttachments((prev) =>
-            prev.map((item) => (item.id === attachmentId ? updated : item)),
-          )
-        }
-        return updated
-      } catch (err) {
-        const msg = (err as Error).message || 'Không thể tải thông tin tài liệu'
-        toast.error(msg)
-        return null
-      }
-    },
-    [],
-  )
-
-  const dismissUploadTask = React.useCallback((tempId: string) => {
-    setUploadTasks((prev) => prev.filter((task) => task.tempId !== tempId))
-  }, [])
-
-  const clearFailedUploadTasks = React.useCallback(() => {
-    setUploadTasks((prev) => prev.filter((task) => task.status !== 'error'))
-  }, [])
-
-  const uploadAttachments = React.useCallback(
-    async (filesInput: FileList | File[]) => {
-      const files = Array.from(filesInput)
-      if (files.length === 0) return
-
-      const validFiles: File[] = []
-      for (const file of files) {
-        const check = validateAttachmentFile(file)
-        if (!check.valid) {
-          toast.error(check.error || `Tệp "${file.name}" không hợp lệ`)
-        } else {
-          validFiles.push(file)
-        }
-      }
-
-      if (validFiles.length === 0) return
-
-      let convId = activeConversationIdRef.current
-      if (!convId) {
-        try {
-          const firstFileName = validFiles[0]?.name || 'Mới'
-          const firstTitle = `Tài liệu: ${firstFileName}`
-          const newConv = await chatApi.createConversation(
-            {
-              title:
-                firstTitle.length > 45 ? `${firstTitle.slice(0, 42)}...` : firstTitle,
-            },
-            userId,
-          )
-          convId = newConv.id
-          skipFetchForConvIdRef.current = convId
-          activeConversationIdRef.current = convId
-          setActiveConversationId(convId)
-          setConversations((prev) => [
-            newConv,
-            ...(Array.isArray(prev) ? prev.filter((c) => c.id !== newConv.id) : []),
-          ])
-        } catch (err) {
-          const msg =
-            (err as Error).message || 'Không thể khởi tạo cuộc trò chuyện để tải tài liệu'
-          toast.error(msg)
-          return
-        }
-      }
-
-      const queuedTasks = validFiles.map((file, idx) => ({
-        file,
-        tempId: `upload-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 6)}`,
-      }))
-
-      setUploadTasks((prev) => [
-        ...prev,
-        ...queuedTasks.map(({ file, tempId }) => ({
-          tempId,
-          fileName: file.name,
-          fileSize: file.size,
-          progress: 0,
-          status: 'uploading' as const,
-        })),
-      ])
-
-      for (const { file, tempId } of queuedTasks) {
-        try {
-          const uploaded = await chatApi.uploadAttachment(convId, file, (percent) => {
-            setUploadTasks((prev) =>
-              prev.map((task) =>
-                task.tempId === tempId ? { ...task, progress: percent } : task,
-              ),
-            )
-          })
-
-          setUploadTasks((prev) => prev.filter((task) => task.tempId !== tempId))
-          if (activeConversationIdRef.current === convId) {
-            setAttachments((prev) => [
-              uploaded,
-              ...prev.filter((item) => item.id !== uploaded.id),
-            ])
-          }
-          toast.success(`Đã tải lên "${uploaded.fileName || file.name}"`)
-        } catch (err) {
-          const errorMsg = formatAttachmentErrorMessage(err, file.name)
-          setUploadTasks((prev) =>
-            prev.map((task) =>
-              task.tempId === tempId
-                ? { ...task, status: 'error', error: errorMsg }
-                : task,
-            ),
-          )
-          toast.error(errorMsg)
-        }
-      }
-    },
-    [userId],
-  )
-
-  const deleteAttachment = React.useCallback(async (attachmentId: string) => {
-    const convId = activeConversationIdRef.current
-    if (!convId) return
-
-    setDeletingAttachmentIds((prev) =>
-      prev.includes(attachmentId) ? prev : [...prev, attachmentId],
-    )
-
-    try {
-      await chatApi.deleteAttachment(convId, attachmentId)
-      if (activeConversationIdRef.current === convId) {
-        setAttachments((prev) => prev.filter((item) => item.id !== attachmentId))
-      }
-      toast.success('Đã xóa tài liệu đính kèm')
-    } catch (err) {
-      const msg = (err as Error).message || 'Không thể xóa tài liệu đính kèm'
-      toast.error(msg)
-    } finally {
-      setDeletingAttachmentIds((prev) => prev.filter((id) => id !== attachmentId))
-    }
-  }, [])
-
-  const downloadAttachment = React.useCallback(
-    async (attachment: ConversationAttachment) => {
-      const convId = activeConversationIdRef.current || attachment.conversationId
-      if (!convId) return
-
-      setDownloadingAttachmentId(attachment.id)
-      try {
-        const { blob, fileName } = await chatApi.downloadAttachment(convId, attachment.id)
-        const downloadName =
-          fileName || attachment.fileName || `tai-lieu-${attachment.id}`
-        const objectUrl = URL.createObjectURL(blob)
-        const link = document.createElement('a')
-        link.href = objectUrl
-        link.download = downloadName
-        document.body.appendChild(link)
-        link.click()
-        link.remove()
-        window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000)
-      } catch (err) {
-        const msg = (err as Error).message || 'Không thể tải xuống tài liệu'
-        toast.error(msg)
-      } finally {
-        setDownloadingAttachmentId((prev) => (prev === attachment.id ? null : prev))
-      }
-    },
-    [],
-  )
-
-  const isUploadingAttachment = React.useMemo(
-    () => uploadTasks.some((task) => task.status === 'uploading'),
-    [uploadTasks],
+    [activeConversationId, isLoading, messages, userId, workflowMode],
   )
 
   const refreshAttachments = React.useCallback(async () => {
@@ -1145,6 +980,8 @@ export function useChat(initialConversationId?: string | null): UseChatReturn {
     downloadingAttachmentId,
     isLoading,
     error,
+    isLawyer,
+    workflowMode,
     selectedCitation,
     isCitationDrawerOpen,
     setIsCitationDrawerOpen,

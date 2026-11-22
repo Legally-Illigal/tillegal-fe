@@ -22,6 +22,7 @@ export interface ChatInputProps {
   onUploadFiles?: (files: FileList | File[]) => void | Promise<void>
   onOpenAttachments?: () => void
   onDeleteAttachment?: (attachmentId: string) => void | Promise<void>
+  isLawyer?: boolean
 }
 
 const QUICK_CHIPS = [
@@ -30,11 +31,17 @@ const QUICK_CHIPS = [
   'Trình tự thủ tục thực hiện',
 ]
 
+const LAWYER_QUICK_CHIPS = [
+  'Phân tích rủi ro & đa góc nhìn',
+  'Luận cứ tranh tụng & phản biện',
+  'Thẩm định điều khoản & tiền lệ',
+]
+
 export function ChatInput({
   onSend,
   isLoading = false,
   disabled = false,
-  placeholder = 'Đặt câu hỏi hoặc mô tả tình huống pháp lý của bạn...',
+  placeholder,
   className,
   attachments = [],
   uploadTasks = [],
@@ -42,7 +49,14 @@ export function ChatInput({
   onUploadFiles,
   onOpenAttachments,
   onDeleteAttachment,
+  isLawyer = false,
 }: ChatInputProps) {
+  const chips = isLawyer ? LAWYER_QUICK_CHIPS : QUICK_CHIPS
+  const effectivePlaceholder =
+    placeholder ||
+    (isLawyer
+      ? 'Mô tả vụ việc, yêu cầu tư vấn chuyên sâu hoặc chiến lược tranh tụng...'
+      : 'Đặt câu hỏi hoặc mô tả tình huống pháp lý của bạn...')
   const [content, setContent] = React.useState('')
   const [isDragging, setIsDragging] = React.useState(false)
   const textareaRef = React.useRef<HTMLTextAreaElement>(null)
@@ -128,7 +142,7 @@ export function ChatInput({
           <Sparkles className="text-primary size-3" />
           <span>Gợi ý:</span>
         </div>
-        {QUICK_CHIPS.map((chip, idx) => (
+        {chips.map((chip, idx) => (
           <button
             key={idx}
             type="button"
@@ -209,7 +223,7 @@ export function ChatInput({
           value={content}
           onChange={handleInput}
           onKeyDown={handleKeyDown}
-          placeholder={placeholder}
+          placeholder={effectivePlaceholder}
           disabled={disabled || isLoading}
           rows={1}
           className="max-h-[160px] min-h-[44px] w-full resize-none border-0 bg-transparent px-2 py-2 text-xs leading-relaxed shadow-none focus-visible:ring-0 sm:text-sm"

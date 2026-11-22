@@ -159,7 +159,7 @@ describe('Auth Feature', () => {
       vi.mocked(apiClient.get).mockResolvedValueOnce(mockUser)
 
       const me = await authApi.getMe({ silent401: true })
-      expect(apiClient.get).toHaveBeenCalledWith('/auth/me', { silent401: true })
+      expect(apiClient.get).toHaveBeenCalledWith('/users/me', { silent401: true })
       expect(me).toEqual(mockUser)
 
       const mockLogoutRes = { message: 'Logged out successfully.' }
@@ -198,6 +198,17 @@ describe('Auth Feature', () => {
       ).toContain('chữ số')
       expect(translateAuthMessage('Invalid phone number format.')).toContain(
         'Số điện thoại không đúng định dạng',
+      )
+      expect(
+        translateAuthMessage(
+          'Administrators cannot lock or deactivate their own account.',
+        ),
+      ).toContain('Quản trị viên không thể tự vô hiệu hóa')
+      expect(translateAuthMessage('User account has been deactivated.')).toContain(
+        'Tài khoản người dùng đã bị vô hiệu hóa',
+      )
+      expect(translateAuthMessage('Password has been successfully updated.')).toContain(
+        'Mật khẩu đã được cập nhật thành công',
       )
     })
 
